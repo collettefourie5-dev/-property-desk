@@ -1,0 +1,51 @@
+name: property-desk-local
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-property_desk}
+      POSTGRES_USER: ${POSTGRES_USER:-property_desk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-locally}
+    ports:
+      # Exposed locally only, for convenience (Prisma Studio, psql). Never do this in test/prod.
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-property_desk}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - property-desk-local
+
+  app:
+    image: node:24-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-property_desk}:${POSTGRES_PASSWORD:-change-me-locally}@postgres:5432/${POSTGRES_DB:-property_desk}
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/app
+      - app_node_modules:/app/node_modules
+      - app_next_cache:/app/.next
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - property-desk-local
+
+networks:
+  property-desk-local:
+
+volumes:
+  postgres_local_data:
+  app_node_modules:
+  app_next_cache:

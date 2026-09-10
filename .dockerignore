@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.github
+uploads
+coverage
+playwright-report
+test-results
+src/generated
+*.log
+.env
+.env.*
+!.env.example
+!.env.test.example
+!.env.production.example
+.claude
+.vscode

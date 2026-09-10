@@ -1,0 +1,256 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Better Auth (internal/admin users only — the public booking flow is
+// anonymous and never touches these models). Shape follows Better Auth's
+// documented Prisma schema; role/status/lastLoginAt are additionalFields.
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String    @default("USER")
+  status        String    @default("ACTIVE")
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions  Session[]
+  accounts  Account[]
+  auditLogs AuditLog[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id         String @id
+  accountId  String
+  providerId String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------------------------------------------------------------------------
+// Domain: booking + intake flow, availability, tracking, content, audit
+// ---------------------------------------------------------------------------
+
+enum TransactionStage {
+  CONSIDERING
+  PREPARING
+  NEGOTIATING
+  HAVE_OTP
+  ALREADY_SIGNED
+}
+
+enum OwnershipStructure {
+  PERSONAL
+  JOINT
+  COMPANY
+  TRUST
+  ESTATE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum SlotStatus {
+  AVAILABLE
+  BOOKED
+  BLOCKED
+}
+
+enum TrackedEventName {
+  LEAD
+  SCHEDULE
+  PURCHASE
+}
+
+model Booking {
+  id          String  @id @default(cuid())
+  draftToken  String  @unique
+
+  // Contact details
+  fullName String?
+  email    String?
+  phone    String?
+
+  // Property details
+  propertyAddress String?
+  propertyType    String?
+
+  // Transaction context
+  stage              TransactionStage?
+  ownershipStructure OwnershipStructure?
+  otherParties       String?
+
+  // Free text
+  transactionSummary String?
+  mainConcern        String?
+  desiredOutcome     String?
+
+  // Payment (fixed R1,250 offer)
+  amount        Decimal       @default(1250) @db.Decimal(10, 2)
+  currency      String        @default("ZAR")
+  paymentStatus PaymentStatus @default(PENDING)
+  payfastPaymentId String?
+  paidAt        DateTime?
+
+  // Slot
+  timeSlot TimeSlot?
+
+  // Attribution
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  utmTerm     String?
+  landingPageVariantSlug String?
+
+  consentGivenAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents     BookingDocument[]
+  trackedEvents TrackedEvent[]
+
+  @@index([email])
+  @@index([paymentStatus])
+  @@map("booking")
+}
+
+model BookingDocument {
+  id           String   @id @default(cuid())
+  bookingId    String
+  booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  storageKey   String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  uploadedAt   DateTime @default(now())
+
+  @@index([bookingId])
+  @@map("booking_document")
+}
+
+model TimeSlot {
+  id        String     @id @default(cuid())
+  startsAt  DateTime
+  endsAt    DateTime
+  status    SlotStatus @default(AVAILABLE)
+
+  bookingId String?  @unique
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, startsAt])
+  @@map("time_slot")
+}
+
+model LandingPageVariant {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  headline     String
+  subheadline  String?
+  heroImageUrl String?
+  priceLabel   String?
+  ctaLabel     String?
+  isActive     Boolean  @default(true)
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("landing_page_variant")
+}
+
+model TrackedEvent {
+  id          String           @id @default(cuid())
+  bookingId   String?
+  booking     Booking?         @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  eventName   TrackedEventName
+  eventId     String           @unique
+  pixelFiredAt DateTime?
+  capiFiredAt  DateTime?
+  capiSuccess  Boolean?
+  createdAt   DateTime         @default(now())
+
+  @@index([bookingId])
+  @@map("tracked_event")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  targetType String?
+  targetId   String?
+  ipAddress  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@map("audit_log")
+}

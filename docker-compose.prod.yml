@@ -1,0 +1,58 @@
+name: property-desk-production
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_production_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - property-desk-production
+    # Deliberately no `ports:` — Postgres is reachable only from the app on the
+    # private network, never from the host or the public internet.
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION}
+        GIT_COMMIT: ${GIT_COMMIT}
+        GIT_TAG: ${GIT_TAG}
+        BUILD_TIME: ${BUILD_TIME}
+    image: property-desk:${GIT_TAG}
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    ports:
+      # Bound to loopback: a reverse proxy on this VM connects via localhost.
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - property-desk-production
+
+networks:
+  property-desk-production:
+
+volumes:
+  # Never dropped by deploy scripts — this is the production data.
+  postgres_production_data:
