@@ -12,7 +12,9 @@ services:
       # Exposed locally only, for convenience (Prisma Studio, psql). Never do this in test/prod.
       - '127.0.0.1:5432:5432'
     volumes:
-      - postgres_local_data:/var/lib/postgresql/data
+      # postgres:18+ images store data directly under /var/lib/postgresql (versioned
+      # subdirectories), not /var/lib/postgresql/data — mounting the old path crash-loops.
+      - postgres_local_data:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-property_desk}']
       interval: 5s
