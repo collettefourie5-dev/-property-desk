@@ -1,4 +1,3 @@
-import 'server-only';
 import { headers } from 'next/headers';
 import { logger, type Logger } from '@/lib/logging/logger';
 

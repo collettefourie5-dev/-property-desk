@@ -1,4 +1,3 @@
-import 'server-only';
 import { getEnv } from '@/lib/env';
 
 type Level = 'debug' | 'info' | 'warn' | 'error';
