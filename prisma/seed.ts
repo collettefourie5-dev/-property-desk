@@ -6,6 +6,8 @@
 import 'dotenv/config';
 import { prisma } from '../src/lib/db/prisma';
 import { createStaffAccount } from '../src/lib/auth/auth';
+import { createSlots } from '../src/server/services/availability';
+import { sastDateKey } from '../src/lib/time';
 
 async function main() {
   const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@example.com';
@@ -39,6 +41,19 @@ async function main() {
     },
   });
   console.log('Ensured default landing page variant exists');
+
+  // Sample calendar for local testing: weekdays 09:00-16:00, hourly, for the next two weeks.
+  const end = new Date();
+  end.setDate(end.getDate() + 14);
+  const { created, skipped } = await createSlots({
+    startDate: sastDateKey(new Date()),
+    endDate: sastDateKey(end),
+    weekdays: [1, 2, 3, 4, 5],
+    firstStart: '09:00',
+    lastEnd: '16:00',
+    durationMinutes: 60,
+  });
+  console.log(`Sample calendar: ${created} slots added, ${skipped} already existed`);
 }
 
 main()

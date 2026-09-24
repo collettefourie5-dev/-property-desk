@@ -49,6 +49,17 @@ email variables needed for a real deployment (a real `EMAIL_DRIVER` and `ADMIN_N
 because booking requests are delivered by email); `next build` itself needs no secrets at
 all (verified — a build with a completely empty environment succeeds).
 
+## Calendar
+
+The attorney sets when sessions can be booked in `/admin/availability` (add times in bulk — e.g.
+weekdays 09:00–16:00, hourly — or remove single times). Clients pick a date, time and language
+(English/Afrikaans) in the booking form; only open times inside a window from 12 hours to 60 days
+ahead are offered. Times are stored as UTC instants and always shown in South African time (SAST,
+UTC+2, no daylight saving). The chosen time is claimed atomically when the request is sent, so two
+clients can't get the same slot (the second is asked to pick another); a held time stays held until
+the attorney releases it from the booking. If the calendar has no open times, clients can still
+send a request and the attorney proposes a time. `npm run db:seed` adds a sample calendar for local testing.
+
 ## Booking request emails
 
 When a client submits the booking form, the request is saved and then emailed to

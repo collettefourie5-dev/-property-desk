@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/db/prisma';
 import { getStorage } from '@/lib/storage';
+import { deleteSlots, makeSlot } from '@/test/slots';
 import { STEPS } from '@/lib/validation/booking';
 import {
   addDocument,
@@ -18,12 +19,14 @@ const pdf = () => Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(64)]);
 
 describe('booking service (integration, real Postgres)', () => {
   const cleanupKeys: string[] = [];
+  const slotIds: string[] = [];
 
   afterAll(async () => {
     const bookings = await prisma.booking.findMany({ where: { email }, include: { documents: true } });
     for (const b of bookings) for (const d of b.documents) cleanupKeys.push(d.storageKey);
     await Promise.all(cleanupKeys.map((k) => getStorage().delete(k).catch(() => undefined)));
     await prisma.booking.deleteMany({ where: { email } });
+    await deleteSlots(slotIds);
     await prisma.$disconnect();
   });
 
@@ -51,12 +54,22 @@ describe('booking service (integration, real Postgres)', () => {
     await saveStep(token, 'details', { transactionSummary: 'Buyer offered R2m', mainConcern: 'Suspensive conditions' });
     await saveStep(token, 'intent', { desiredOutcome: 'Sell without penalty' });
 
+    // Scheduling comes after the intake questions: language + a time from the live calendar.
+    const slot = await makeSlot();
+    slotIds.push(slot.id);
+    booking = await getBookingByToken(token);
+    expect(firstIncompleteStep(booking, STEPS)).toBe('schedule');
+    await saveStep(token, 'schedule', { sessionLanguage: 'AFRIKAANS', slotId: slot.id });
+
     booking = await getBookingByToken(token);
     expect(firstIncompleteStep(booking, STEPS)).toBe('review');
 
     const submitted = await submitIntake(token, STEPS);
     expect(submitted.intakeSubmittedAt).not.toBeNull();
     expect(submitted.paymentStatus).toBe('PENDING');
+    expect(submitted.sessionLanguage).toBe('AFRIKAANS');
+    const held = await prisma.timeSlot.findUniqueOrThrow({ where: { id: slot.id } });
+    expect(held).toMatchObject({ status: 'BOOKED', bookingId: submitted.id });
 
     // Once submitted the intake is locked.
     await expect(saveStep(token, 'stage', { stage: 'CONSIDERING' })).rejects.toThrow(/already been submitted/);

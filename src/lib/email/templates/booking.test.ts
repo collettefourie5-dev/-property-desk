@@ -23,6 +23,8 @@ const booking: BookingEmailData = {
   utmCampaign: 'c1',
   utmContent: 'ad3',
   landingPageVariantSlug: 'price',
+  sessionLanguage: 'AFRIKAANS',
+  timeSlot: { startsAt: new Date('2026-10-05T07:00:00Z') },
   createdAt: new Date('2026-09-24T08:00:00Z'),
   documents: [{ originalName: 'OTP.pdf', sizeBytes: 20480 }],
 };
@@ -42,6 +44,8 @@ describe('bookingRequestEmail', () => {
       'Exit safely',
       'OTP.pdf',
       'facebook / c1 / ad3 / price',
+      'Afrikaans',
+      '5 October at 09:00 (South African time)',
       'https://desk.example/admin/bookings/b1',
     ]) {
       expect(mail.text).toContain(expected);

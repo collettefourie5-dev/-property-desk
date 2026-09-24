@@ -10,6 +10,7 @@ export const STEPS = [
   'details',
   'documents',
   'intent',
+  'schedule',
   'review',
 ] as const;
 export type Step = (typeof STEPS)[number];
@@ -29,6 +30,11 @@ export const OWNERSHIPS = [
   { value: 'COMPANY', label: 'Company' },
   { value: 'TRUST', label: 'Trust' },
   { value: 'ESTATE', label: 'Deceased estate' },
+] as const;
+
+export const LANGUAGES = [
+  { value: 'ENGLISH', label: 'English' },
+  { value: 'AFRIKAANS', label: 'Afrikaans' },
 ] as const;
 
 export const PROPERTY_TYPES = [
@@ -87,6 +93,14 @@ export const intentSchema = z.object({
   desiredOutcome: text(1000, 'What you would like to achieve'),
 });
 
+/** The slot is validated against the live calendar in the booking service, not just its shape here. */
+export const scheduleSchema = z.object({
+  sessionLanguage: z.enum(LANGUAGES.map((l) => l.value) as [string, ...string[]], {
+    error: 'Choose the language for your session',
+  }),
+  slotId: z.string().trim().max(64).optional(),
+});
+
 /** Documents are uploaded via /api/book/documents; the step itself has no required fields. */
 export const documentsSchema = z.object({});
 export const reviewSchema = z.object({});
@@ -100,6 +114,7 @@ export const stepSchemas = {
   details: detailsSchema,
   documents: documentsSchema,
   intent: intentSchema,
+  schedule: scheduleSchema,
   review: reviewSchema,
 } as const;
 

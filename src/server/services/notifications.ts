@@ -4,6 +4,8 @@ import { sendEmail } from '@/lib/email/email';
 import { bookingRequestEmail, clientAcknowledgementEmail } from '@/lib/email/templates/booking';
 import { logger } from '@/lib/logging/logger';
 import { getSiteConfig } from '@/lib/site-config';
+import { formatSlotFull } from '@/lib/time';
+import { LANGUAGES } from '@/lib/validation/booking';
 
 /**
  * Emails the attorney a new booking request (and the client a receipt).
@@ -32,7 +34,7 @@ export async function notifyNewBooking(bookingId: string, { force = false } = {}
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { documents: { orderBy: { uploadedAt: 'asc' } } },
+    include: { documents: { orderBy: { uploadedAt: 'asc' } }, timeSlot: { select: { startsAt: true } } },
   });
   if (!booking) return false;
 
@@ -58,6 +60,8 @@ export async function notifyNewBooking(bookingId: string, { force = false } = {}
         ...clientAcknowledgementEmail(booking, {
           attorneyName: site.attorneyName,
           whatToExpectUrl: `${base}/what-to-expect`,
+          requestedTime: booking.timeSlot ? formatSlotFull(booking.timeSlot.startsAt) : undefined,
+          language: LANGUAGES.find((l) => l.value === booking.sessionLanguage)?.label,
         }),
       });
     } catch (error) {

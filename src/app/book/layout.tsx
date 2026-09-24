@@ -14,7 +14,7 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
     <>
       <div className="mx-auto w-full max-w-xl flex-1 px-5 py-8">
         <p className="mb-6 text-sm font-medium uppercase tracking-widest text-accent">
-          {site.name} · {site.priceLabel} session
+          {site.name} · {site.sessionName}
         </p>
         {children}
       </div>

@@ -35,6 +35,14 @@ export default async function AdminDashboardPage() {
         </Link>
       </section>
 
+      <section className="mb-8 rounded-lg border border-neutral-200 bg-white p-4">
+        <h2 className="mb-2 text-sm font-medium text-neutral-500">Calendar</h2>
+        <p className="text-sm text-neutral-600">Set the dates and times clients can choose from.</p>
+        <Link href="/admin/availability" className="mt-2 inline-block text-sm underline underline-offset-2">
+          Manage availability
+        </Link>
+      </section>
+
       <section className="rounded-lg border border-neutral-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-medium text-neutral-500">Recent activity</h2>
         {recentAuditLogs.length === 0 ? (

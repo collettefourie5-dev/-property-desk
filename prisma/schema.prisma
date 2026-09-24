@@ -112,6 +112,11 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum SessionLanguage {
+  ENGLISH
+  AFRIKAANS
+}
+
 enum SlotStatus {
   AVAILABLE
   BOOKED
@@ -153,8 +158,11 @@ model Booking {
   paymentStatus PaymentStatus @default(PENDING)
   paidAt        DateTime?
 
-  // Slot
-  timeSlot TimeSlot?
+  // Scheduling: the client requests a slot + language; the attorney confirms personally.
+  // preferredSlotId is only a preference while drafting; the slot is claimed on submit (timeSlot).
+  sessionLanguage SessionLanguage?
+  preferredSlotId String?
+  timeSlot        TimeSlot?
 
   // Attribution
   utmSource   String?

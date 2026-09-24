@@ -7,10 +7,13 @@ vi.mock('@/lib/email/email', () => ({ sendEmail: (...args: unknown[]) => sendEma
 
 import { prisma } from '@/lib/db/prisma';
 import { STEPS } from '@/lib/validation/booking';
+import { deleteSlots, makeSlot } from '@/test/slots';
 import { createDraft, saveStep, submitIntake } from '@/server/services/booking';
 import { notifyNewBooking } from '@/server/services/notifications';
 
 const email = `notify-${Date.now()}@example.com`;
+
+const slotIds: string[] = [];
 
 async function submittedBooking() {
   const { token } = await createDraft({ fullName: 'Notify Tester', email, phone: '0821234567' }, { utmSource: 'facebook' });
@@ -20,6 +23,9 @@ async function submittedBooking() {
   await saveStep(token, 'parties', { otherParties: 'None' });
   await saveStep(token, 'details', { transactionSummary: 'Summary', mainConcern: 'Concern' });
   await saveStep(token, 'intent', { desiredOutcome: 'Outcome' });
+  const slot = await makeSlot(5, slotIds.length);
+  slotIds.push(slot.id);
+  await saveStep(token, 'schedule', { sessionLanguage: 'AFRIKAANS', slotId: slot.id });
   return submitIntake(token, STEPS);
 }
 
@@ -28,6 +34,7 @@ describe('notifyNewBooking (integration, real Postgres)', () => {
 
   afterAll(async () => {
     await prisma.booking.deleteMany({ where: { email } });
+    await deleteSlots(slotIds);
     await prisma.$disconnect();
   });
 
@@ -39,6 +46,9 @@ describe('notifyNewBooking (integration, real Postgres)', () => {
     expect(adminMail).toMatchObject({ to: 'attorney@test.example', replyTo: email });
     expect(adminMail.subject).toBe('New booking request — Notify Tester');
     expect(adminMail.text).toContain('facebook');
+    expect(adminMail.text).toContain('Afrikaans');
+    expect(adminMail.text).toContain('Requested time:');
+    expect(adminMail.text).not.toContain('No time chosen');
     expect(clientMail.to).toBe(email);
 
     const row = await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } });

@@ -78,7 +78,7 @@ export async function saveStepAction(_prev: FormState, formData: FormData): Prom
     }
   } catch (error) {
     if (error instanceof ValidationError && error.fieldErrors) {
-      return { errors: error.fieldErrors, message: error.message, values };
+      return { errors: error.fieldErrors, values };
     }
     if (!(error instanceof AppError)) {
       logger.error('Booking step failed', {

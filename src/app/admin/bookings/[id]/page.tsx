@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { bookingDetailRows } from '@/lib/email/templates/booking';
 import { requireRole } from '@/lib/permissions';
 import { recordAuditEvent, AuditAction } from '@/server/services/audit';
-import { resendBookingEmail, setPaymentStatus } from '../actions';
+import { releaseBookingSlot, resendBookingEmail, setPaymentStatus } from '../actions';
 
 const buttonClass =
   'rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-neutral-100';
@@ -15,7 +15,7 @@ export default async function AdminBookingPage(props: PageProps<'/admin/bookings
 
   const booking = await prisma.booking.findFirst({
     where: { id, intakeSubmittedAt: { not: null } },
-    include: { documents: { orderBy: { uploadedAt: 'asc' } } },
+    include: { documents: { orderBy: { uploadedAt: 'asc' } }, timeSlot: { select: { id: true, startsAt: true } } },
   });
   if (!booking) notFound();
 
@@ -76,9 +76,22 @@ export default async function AdminBookingPage(props: PageProps<'/admin/bookings
         )}
       </section>
 
+      {booking.timeSlot && (
+        <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-4">
+          <p className="text-sm text-neutral-500">
+            This time is held for the client until you release it (for example if you reschedule).
+          </p>
+          <form action={releaseBookingSlot} className="mt-2">
+            <input type="hidden" name="id" value={booking.id} />
+            <input type="hidden" name="slotId" value={booking.timeSlot.id} />
+            <button className={buttonClass}>Release this time</button>
+          </form>
+        </section>
+      )}
+
       <section className="mt-6 flex flex-wrap items-center gap-6 rounded-lg border border-neutral-200 bg-white p-4">
         <div>
-          <p className="text-sm text-neutral-500">Session fee (R1,250): {booking.paymentStatus}</p>
+          <p className="text-sm text-neutral-500">Session fee: {booking.paymentStatus}</p>
           <form action={setPaymentStatus} className="mt-2 flex gap-2">
             <input type="hidden" name="id" value={booking.id} />
             <button name="status" value="PAID" className={buttonClass}>

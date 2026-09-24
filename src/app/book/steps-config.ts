@@ -9,10 +9,10 @@ export interface StepConfig {
 }
 
 /** Field definitions per step — plain data so they can cross into the client form component. */
-export const stepConfig: Record<Exclude<Step, 'documents' | 'review'>, StepConfig> = {
+export const stepConfig: Record<Exclude<Step, 'documents' | 'schedule' | 'review'>, StepConfig> = {
   contact: {
     title: 'Your contact details',
-    intro: 'So we can confirm your session and send you what you need.',
+    intro: 'We use your email to personally confirm your session, take you through pricing, and ask anything further we need to know about the transaction.',
     submitLabel: 'Continue',
     fields: [
       { kind: 'text', name: 'fullName', label: 'Full name', autoComplete: 'name', maxLength: 120 },

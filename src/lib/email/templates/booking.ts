@@ -1,5 +1,6 @@
 import { escapeHtml, singleLine } from '@/lib/email/escape';
-import { OWNERSHIPS, STAGES } from '@/lib/validation/booking';
+import { formatSlotFull } from '@/lib/time';
+import { LANGUAGES, OWNERSHIPS, STAGES } from '@/lib/validation/booking';
 
 /** The subset of a booking these emails need — kept structural so templates are trivially testable. */
 export interface BookingEmailData {
@@ -19,6 +20,9 @@ export interface BookingEmailData {
   utmCampaign: string | null;
   utmContent: string | null;
   landingPageVariantSlug: string | null;
+  sessionLanguage: string | null;
+  /** The slot the client asked for (null when the calendar had no open times). */
+  timeSlot: { startsAt: Date } | null;
   createdAt: Date;
   documents: { originalName: string; sizeBytes: number }[];
 }
@@ -50,6 +54,11 @@ export function bookingDetailRows(b: BookingEmailData): [string, string][] {
     ['Main concern', dash(b.mainConcern)],
     ['Goal for the session', dash(b.desiredOutcome)],
     ['Documents', docs],
+    ['Session language', LANGUAGES.find((l) => l.value === b.sessionLanguage)?.label ?? dash(b.sessionLanguage)],
+    [
+      'Requested time',
+      b.timeSlot ? formatSlotFull(b.timeSlot.startsAt) : 'No time chosen — please propose one',
+    ],
   ];
 }
 
@@ -62,7 +71,7 @@ export function bookingRequestEmail(b: BookingEmailData, opts: { adminUrl: strin
 
   const html = `<div style="font-family:system-ui,Arial,sans-serif;max-width:640px;color:#1a1a1a">
 <h2 style="margin:0 0 4px">New booking request</h2>
-<p style="margin:0 0 20px;color:#5c6663">Pre-Sale Property Strategy Session · R1,250 · received ${escapeHtml(b.createdAt.toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg' }))}</p>
+<p style="margin:0 0 20px;color:#5c6663">Pre-Sale Property Strategy Session · received ${escapeHtml(b.createdAt.toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg' }))}</p>
 <table style="border-collapse:collapse;width:100%">
 ${details
   .map(
@@ -78,7 +87,7 @@ ${source ? `<p style="margin:20px 0 0;color:#5c6663;font-size:13px">Came from: $
 
   const text = [
     'NEW BOOKING REQUEST',
-    'Pre-Sale Property Strategy Session · R1,250',
+    'Pre-Sale Property Strategy Session',
     '',
     ...details.map(([label, value]) => `${label}: ${value}`),
     source ? `\nCame from: ${source}` : '',
@@ -93,21 +102,23 @@ ${source ? `<p style="margin:20px 0 0;color:#5c6663;font-size:13px">Came from: $
 /** A short receipt so the client knows the request went through. Deliberately makes no promises about timing or payment. */
 export function clientAcknowledgementEmail(
   b: Pick<BookingEmailData, 'fullName'>,
-  opts: { attorneyName: string; whatToExpectUrl: string },
+  opts: { attorneyName: string; whatToExpectUrl: string; requestedTime?: string; language?: string },
 ): RenderedEmail {
   const name = escapeHtml(singleLine(b.fullName ?? 'there', 60));
   const html = `<div style="font-family:system-ui,Arial,sans-serif;max-width:560px;color:#1a1a1a">
 <h2 style="margin:0 0 12px">We have your booking request</h2>
 <p>Hi ${name},</p>
-<p>Thank you — we have received your request for a Pre-Sale Property Strategy Session and ${escapeHtml(opts.attorneyName)} will be in touch with you shortly to arrange it.</p>
+<p>Thank you — we have received your request for a Pre-Sale Property Strategy Session and ${escapeHtml(opts.attorneyName)} will be in touch with you shortly to confirm it and take you through pricing.</p>
+${opts.requestedTime ? `<p style="margin:0 0 12px"><strong>Requested:</strong> ${escapeHtml(opts.requestedTime)}${opts.language ? ` · ${escapeHtml(opts.language)}` : ''}</p>` : ''}
 <p><a href="${escapeHtml(opts.whatToExpectUrl)}">What to expect</a></p>
 <p style="color:#5c6663;font-size:13px">This is a paid consultation and not an instruction to act on your transaction.</p>
 </div>`;
   const text = `Hi ${singleLine(b.fullName ?? 'there', 60)},
 
-Thank you — we have received your request for a Pre-Sale Property Strategy Session and ${opts.attorneyName} will be in touch with you shortly to arrange it.
+Thank you — we have received your request for a Pre-Sale Property Strategy Session and ${opts.attorneyName} will be in touch with you shortly to confirm it and take you through pricing.
+${opts.requestedTime ? `Requested: ${opts.requestedTime}${opts.language ? ` · ${opts.language}` : ''}
 
-What to expect: ${opts.whatToExpectUrl}
+` : ''}What to expect: ${opts.whatToExpectUrl}
 
 This is a paid consultation and not an instruction to act on your transaction.`;
   return { subject: 'We have your booking request — The Property Desk', html, text };

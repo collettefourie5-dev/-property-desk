@@ -1,8 +1,13 @@
 import { notFound, redirect } from 'next/navigation';
 import { DocumentUploader } from '@/components/booking/document-uploader';
+import { SchedulePicker, type DayOption } from '@/components/booking/schedule-picker';
 import { StepForm } from '@/components/booking/step-form';
 import { getDraftToken } from '@/lib/booking-session';
+import { prisma } from '@/lib/db/prisma';
+import { formatSlotDate, formatSlotFull, formatSlotTime, sastDateKey } from '@/lib/time';
+import { hasOpenSlots, listOpenSlots } from '@/server/services/availability';
 import {
+  LANGUAGES,
   MAX_DOCUMENTS,
   OWNERSHIPS,
   STAGES,
@@ -36,7 +41,10 @@ function defaultsFor(booking: BookingWithDocuments | null): Record<string, strin
   return Object.fromEntries(Object.entries(values).filter(([, v]) => v)) as Record<string, string>;
 }
 
-const reviewRows = (b: BookingWithDocuments): { step: Step; label: string; value: string }[] => [
+const reviewRows = (
+  b: BookingWithDocuments,
+  requestedTime: string,
+): { step: Step; label: string; value: string }[] => [
   { step: 'contact', label: 'Name', value: b.fullName ?? '' },
   { step: 'contact', label: 'Email', value: b.email ?? '' },
   { step: 'contact', label: 'Mobile', value: b.phone ?? '' },
@@ -52,7 +60,31 @@ const reviewRows = (b: BookingWithDocuments): { step: Step; label: string; value
   { step: 'details', label: 'Main concern', value: b.mainConcern ?? '' },
   { step: 'documents', label: 'Documents', value: b.documents.map((d) => d.originalName).join(', ') || 'None uploaded' },
   { step: 'intent', label: 'Goal for the session', value: b.desiredOutcome ?? '' },
+  {
+    step: 'schedule',
+    label: 'Session language',
+    value: LANGUAGES.find((l) => l.value === b.sessionLanguage)?.label ?? '',
+  },
+  { step: 'schedule', label: 'Requested time', value: requestedTime },
 ];
+
+/** Open slots grouped by South African calendar day, ready for the picker. */
+async function buildDays(): Promise<DayOption[]> {
+  const days = new Map<string, DayOption>();
+  for (const slot of await listOpenSlots()) {
+    const key = sastDateKey(slot.startsAt);
+    const day = days.get(key) ?? { key, label: formatSlotDate(slot.startsAt), slots: [] };
+    day.slots.push({ id: slot.id, time: formatSlotTime(slot.startsAt) });
+    days.set(key, day);
+  }
+  return [...days.values()];
+}
+
+async function requestedTimeLabel(b: BookingWithDocuments): Promise<string> {
+  if (!b.preferredSlotId) return 'No time chosen — we will contact you to arrange one';
+  const slot = await prisma.timeSlot.findUnique({ where: { id: b.preferredSlotId }, select: { startsAt: true } });
+  return slot ? formatSlotFull(slot.startsAt) : 'Please choose a time';
+}
 
 export default async function BookStepPage(props: PageProps<'/book/[step]'>) {
   const parsed = stepSchema.safeParse((await props.params).step);
@@ -63,7 +95,8 @@ export default async function BookStepPage(props: PageProps<'/book/[step]'>) {
   if (booking?.intakeSubmittedAt) redirect('/book/confirmation');
 
   // Server-side guard: nobody can jump ahead of the first step that still needs input.
-  const allowed = firstIncompleteStep(booking, STEPS);
+  const slotsAvailable = await hasOpenSlots();
+  const allowed = firstIncompleteStep(booking, STEPS, slotsAvailable);
   if (STEPS.indexOf(step) > STEPS.indexOf(allowed)) redirect(`/book/${allowed}`);
 
   const index = STEPS.indexOf(step);
@@ -81,7 +114,18 @@ export default async function BookStepPage(props: PageProps<'/book/[step]'>) {
         aria-label="Booking progress"
       />
 
-      {step === 'documents' && booking ? (
+      {step === 'schedule' && booking ? (
+        <>
+          <h1 className="mt-6 mb-6 font-serif text-3xl">When would you like your session?</h1>
+          <SchedulePicker
+            days={await buildDays()}
+            languages={[...LANGUAGES]}
+            defaultLanguage={booking.sessionLanguage ?? undefined}
+            defaultSlotId={booking.preferredSlotId ?? undefined}
+            backHref={backHref}
+          />
+        </>
+      ) : step === 'documents' && booking ? (
         <>
           <h1 className="mt-6 mb-6 font-serif text-3xl">Your documents</h1>
           <DocumentUploader
@@ -93,11 +137,11 @@ export default async function BookStepPage(props: PageProps<'/book/[step]'>) {
         <>
           <h1 className="mt-6 font-serif text-3xl">Check your details</h1>
           <p className="mt-2 mb-6 text-muted">
-            When you send this request it goes straight to the attorney, who will contact you to arrange your
-            session.
+            When you send this request it goes straight to the attorney, who will personally confirm your
+            session and take you through pricing.
           </p>
           <dl className="mb-8 divide-y divide-black/10 rounded-lg border border-black/10 bg-white">
-            {reviewRows(booking).map((row) => (
+            {reviewRows(booking, await requestedTimeLabel(booking)).map((row) => (
               <div key={`${row.step}-${row.label}`} className="flex flex-col gap-1 px-4 py-3">
                 <dt className="flex items-center justify-between text-sm text-muted">
                   {row.label}

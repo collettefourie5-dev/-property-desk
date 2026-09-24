@@ -13,6 +13,7 @@ import {
   type Step,
 } from '@/lib/validation/booking';
 import type { Prisma } from '@/generated/prisma/client';
+import { assertSlotOpen, hasOpenSlots } from '@/server/services/availability';
 
 /**
  * The public booking flow is anonymous. Possession of the draft token (an httpOnly cookie
@@ -40,7 +41,7 @@ export async function getBookingByToken(token: string | undefined): Promise<Book
 }
 
 /** True when the fields a step requires are already saved. Documents are optional, so never block. */
-export function isStepComplete(booking: BookingWithDocuments, step: Step): boolean {
+export function isStepComplete(booking: BookingWithDocuments, step: Step, slotsAvailable = true): boolean {
   switch (step) {
     case 'contact':
       return Boolean(booking.fullName && booking.email && booking.phone && booking.consentGivenAt);
@@ -58,15 +59,23 @@ export function isStepComplete(booking: BookingWithDocuments, step: Step): boole
       return true;
     case 'intent':
       return Boolean(booking.desiredOutcome);
+    case 'schedule':
+      // A time is required whenever the calendar has any open slots; with none open, the client
+      // can still send the request and the attorney proposes a time.
+      return Boolean(booking.sessionLanguage && (booking.preferredSlotId || !slotsAvailable));
     case 'review':
       return Boolean(booking.intakeSubmittedAt);
   }
 }
 
 /** The earliest step still needing input — the server refuses to let anyone skip ahead of it. */
-export function firstIncompleteStep(booking: BookingWithDocuments | null, steps: readonly Step[]): Step {
+export function firstIncompleteStep(
+  booking: BookingWithDocuments | null,
+  steps: readonly Step[],
+  slotsAvailable = true,
+): Step {
   if (!booking) return steps[0];
-  return steps.find((s) => s !== 'review' && !isStepComplete(booking, s)) ?? 'review';
+  return steps.find((s) => s !== 'review' && !isStepComplete(booking, s, slotsAvailable)) ?? 'review';
 }
 
 export async function createDraft(
@@ -99,6 +108,20 @@ export async function saveStep(token: string, step: Exclude<Step, 'contact'>, ra
   const parsed = stepSchemas[step].safeParse(raw);
   if (!parsed.success) {
     throw new ValidationError('Invalid input', parsed.error.flatten().fieldErrors as Record<string, string[]>);
+  }
+
+  if (step === 'schedule') {
+    const { sessionLanguage, slotId } = parsed.data as { sessionLanguage: 'ENGLISH' | 'AFRIKAANS'; slotId?: string };
+    if (slotId) {
+      await assertSlotOpen(slotId);
+    } else if (await hasOpenSlots()) {
+      throw new ValidationError('Invalid input', { slotId: ['Choose a date and time for your session'] });
+    }
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: { sessionLanguage, preferredSlotId: slotId || null },
+    });
+    return;
   }
 
   await prisma.booking.update({
@@ -171,18 +194,44 @@ export async function removeDocument(token: string, documentId: string): Promise
   await getStorage().delete(doc.storageKey).catch(() => undefined);
 }
 
-/** Locks the intake in. Everything required must already be complete — re-checked here, not just in the UI. */
+/**
+ * Locks the intake in and claims the chosen time slot. Everything required must already be
+ * complete — re-checked here, not just in the UI. The claim is atomic, so two clients racing for
+ * the same slot can't both get it: the loser gets a ConflictError and picks another time.
+ */
 export async function submitIntake(token: string, steps: readonly Step[]): Promise<BookingWithDocuments> {
   const booking = await getBookingByToken(token);
   if (!booking) throw new NotFoundError('Booking not found');
   if (booking.intakeSubmittedAt) return booking;
 
-  const missing = steps.find((s) => s !== 'review' && !isStepComplete(booking, s));
+  const slotsAvailable = await hasOpenSlots();
+  const missing = steps.find((s) => s !== 'review' && !isStepComplete(booking, s, slotsAvailable));
   if (missing) throw new ValidationError(`Please complete the "${missing}" step first`);
 
-  return prisma.booking.update({
-    where: { id: booking.id },
-    data: { intakeSubmittedAt: new Date() },
-    include: withDocuments,
+  const result = await prisma.$transaction(async (tx) => {
+    if (booking.preferredSlotId) {
+      const claimed = await tx.timeSlot.updateMany({
+        where: {
+          id: booking.preferredSlotId,
+          status: 'AVAILABLE',
+          bookingId: null,
+          startsAt: { gt: new Date() },
+        },
+        data: { status: 'BOOKED', bookingId: booking.id },
+      });
+      if (claimed.count === 0) return null; // lost the race; nothing was written
+    }
+    return tx.booking.update({
+      where: { id: booking.id },
+      data: { intakeSubmittedAt: new Date() },
+      include: withDocuments,
+    });
   });
+
+  if (!result) {
+    // Clear the stale preference outside the (empty) transaction so the wizard sends them back to pick again.
+    await prisma.booking.update({ where: { id: booking.id }, data: { preferredSlotId: null } });
+    throw new ConflictError('That time was just taken by someone else. Please go back and choose another.');
+  }
+  return result;
 }
