@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { requireRole } from '@/lib/permissions';
 import { prisma } from '@/lib/db/prisma';
 import { SignOutButton } from '@/components/admin/sign-out-button';
@@ -6,7 +7,7 @@ export default async function AdminDashboardPage() {
   const session = await requireRole('ADMIN');
 
   const [bookingCount, recentAuditLogs] = await Promise.all([
-    prisma.booking.count(),
+    prisma.booking.count({ where: { intakeSubmittedAt: { not: null } } }),
     prisma.auditLog.findMany({
       orderBy: { createdAt: 'desc' },
       take: 10,
@@ -27,8 +28,11 @@ export default async function AdminDashboardPage() {
       </div>
 
       <section className="mb-8 rounded-lg border border-neutral-200 bg-white p-4">
-        <h2 className="mb-2 text-sm font-medium text-neutral-500">Bookings</h2>
+        <h2 className="mb-2 text-sm font-medium text-neutral-500">Booking requests</h2>
         <p className="text-3xl font-semibold">{bookingCount}</p>
+        <Link href="/admin/bookings" className="mt-2 inline-block text-sm underline underline-offset-2">
+          View all
+        </Link>
       </section>
 
       <section className="rounded-lg border border-neutral-200 bg-white p-4">

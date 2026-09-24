@@ -1,6 +1,7 @@
 'use server';
 
 import { headers, cookies } from 'next/headers';
+import { after } from 'next/server';
 import { redirect } from 'next/navigation';
 import { ATTRIBUTION_COOKIE, parseAttributionCookie } from '@/lib/attribution';
 import { getDraftToken, setDraftToken } from '@/lib/booking-session';
@@ -8,7 +9,14 @@ import { AppError, ValidationError, toSafeErrorPayload } from '@/lib/errors';
 import { logger } from '@/lib/logging/logger';
 import { clientIp, enforceRateLimit } from '@/lib/rate-limit';
 import { STEPS, contactSchema, stepSchema, type Step } from '@/lib/validation/booking';
-import { createDraft, saveStep, submitIntake, updateContact } from '@/server/services/booking';
+import {
+  createDraft,
+  getBookingByToken,
+  saveStep,
+  submitIntake,
+  updateContact,
+} from '@/server/services/booking';
+import { notifyNewBooking } from '@/server/services/notifications';
 
 export type FormState =
   | { errors?: Record<string, string[]>; message?: string; values?: Record<string, string> }
@@ -43,7 +51,9 @@ export async function saveStepAction(_prev: FormState, formData: FormData): Prom
       }
       const { fullName, email, phone } = parsed.data;
 
-      if (token) {
+      // A cookie can outlive its booking (expired, removed by an admin); that must start a fresh
+      // booking, not trap the visitor on this step.
+      if (token && (await getBookingByToken(token))) {
         await updateContact(token, { fullName, email, phone });
       } else {
         enforceRateLimit({
@@ -58,7 +68,10 @@ export async function saveStepAction(_prev: FormState, formData: FormData): Prom
       }
     } else if (step === 'review') {
       if (!token) return { message: 'Your session has expired. Please start again.', values };
-      await submitIntake(token, STEPS);
+      const submitted = await submitIntake(token, STEPS);
+      // Email the attorney after the response is sent; the booking is already saved, so a slow or
+      // failed email never blocks or loses the request (see notifyNewBooking).
+      after(() => notifyNewBooking(submitted.id));
     } else {
       if (!token) return { message: 'Your session has expired. Please start again.', values };
       await saveStep(token, step, values);
@@ -77,5 +90,5 @@ export async function saveStepAction(_prev: FormState, formData: FormData): Prom
   }
 
   // redirect() throws, so it stays outside the try/catch.
-  redirect(step === 'review' ? '/book/payment' : `/book/${STEPS[STEPS.indexOf(step) + 1]}`);
+  redirect(step === 'review' ? '/book/confirmation' : `/book/${STEPS[STEPS.indexOf(step) + 1]}`);
 }

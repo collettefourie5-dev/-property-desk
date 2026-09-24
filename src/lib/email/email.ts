@@ -6,6 +6,8 @@ export interface SendEmailInput {
   subject: string;
   html: string;
   text?: string;
+  /** Where replies go — lets you answer a client straight from the notification email. */
+  replyTo?: string;
 }
 
 async function sendViaResend(input: SendEmailInput): Promise<void> {
@@ -22,6 +24,7 @@ async function sendViaResend(input: SendEmailInput): Promise<void> {
       subject: input.subject,
       html: input.html,
       text: input.text,
+      reply_to: input.replyTo,
     }),
   });
 
@@ -38,7 +41,7 @@ async function sendViaSmtp(input: SendEmailInput): Promise<void> {
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
     secure: env.SMTP_SECURE ?? false,
-    auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
+    auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD } : undefined,
   });
 
   await transport.sendMail({
@@ -47,6 +50,7 @@ async function sendViaSmtp(input: SendEmailInput): Promise<void> {
     subject: input.subject,
     html: input.html,
     text: input.text,
+    replyTo: input.replyTo,
   });
 }
 

@@ -23,9 +23,6 @@ if ! grep -qE '^APP_ENV=production\s*$' .env.production; then
   echo "ERROR: .env.production does not have APP_ENV=production. Refusing to run." >&2
   exit 1
 fi
-if grep -qE '^PAYFAST_MODE=sandbox\s*$' .env.production; then
-  echo "WARNING: PAYFAST_MODE=sandbox in .env.production — real payments will NOT be processed." >&2
-fi
 
 echo "==> Validating that tag '$TAG' exists"
 git fetch --all --tags --quiet

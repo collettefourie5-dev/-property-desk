@@ -20,8 +20,8 @@ const included = [
 
 const steps = [
   'Tell us about the property and where the deal is at',
-  'Pay the once-off fee to secure your session',
-  'Choose a time that suits you — we confirm by email',
+  'Send your booking request — it takes a few minutes',
+  'We contact you to arrange and confirm your session',
 ];
 
 function firstValue(v: string | string[] | undefined): string | undefined {

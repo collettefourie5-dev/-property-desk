@@ -147,11 +147,10 @@ model Booking {
   mainConcern        String?
   desiredOutcome     String?
 
-  // Payment (fixed R1,250 offer)
+  // Fee (fixed R1,250). No online payment: paymentStatus is set manually by an admin once paid.
   amount        Decimal       @default(1250) @db.Decimal(10, 2)
   currency      String        @default("ZAR")
   paymentStatus PaymentStatus @default(PENDING)
-  payfastPaymentId String?
   paidAt        DateTime?
 
   // Slot
@@ -167,6 +166,7 @@ model Booking {
 
   consentGivenAt    DateTime?
   intakeSubmittedAt DateTime?
+  adminNotifiedAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

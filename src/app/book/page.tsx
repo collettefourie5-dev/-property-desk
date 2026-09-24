@@ -5,6 +5,6 @@ import { firstIncompleteStep, getBookingByToken } from '@/server/services/bookin
 
 export default async function BookIndexPage() {
   const booking = await getBookingByToken(await getDraftToken());
-  if (booking?.intakeSubmittedAt) redirect('/book/payment');
+  if (booking?.intakeSubmittedAt) redirect('/book/confirmation');
   redirect(`/book/${firstIncompleteStep(booking, STEPS)}`);
 }

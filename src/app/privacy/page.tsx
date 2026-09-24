@@ -35,7 +35,7 @@ export default function PrivacyPage() {
           <h2 className="font-serif text-2xl">Why we collect it</h2>
           <p className="mt-2">
             To take your booking, prepare for and hold your consultation, deliver your written roadmap,
-            process your payment, comply with our legal and professional obligations, and communicate with
+            arrange payment of the session fee, comply with our legal and professional obligations, and communicate with
             you about your booking.
           </p>
         </section>
@@ -43,8 +43,8 @@ export default function PrivacyPage() {
         <section>
           <h2 className="font-serif text-2xl">Payment</h2>
           <p className="mt-2">
-            Payments are processed by PayFast. We do not see or store your card details; we receive only
-            confirmation of the payment.
+            This website does not take payments and never asks for card or bank details. Payment of the
+            session fee is arranged with you directly. [Confirm payment method wording before launch.]
           </p>
         </section>
 
@@ -62,7 +62,7 @@ export default function PrivacyPage() {
           <h2 className="font-serif text-2xl">Confidentiality, sharing and storage</h2>
           <p className="mt-2">
             Information you give us in connection with legal advice is treated as confidential. We share it
-            only with service providers who help us run the service (hosting, email, payment) under
+            only with service providers who help us run the service (hosting, email delivery) under
             appropriate safeguards, or where the law requires. We keep it for as long as needed for the
             purposes above and any legal retention period: [retention period to be confirmed].
           </p>

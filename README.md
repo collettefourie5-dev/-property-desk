@@ -1,8 +1,9 @@
 # The Property Desk
 
 Booking + intake website for the Pre-Sale Property Strategy Session offering: ad-angle landing
-pages, a fully-specified multi-step intake wizard with PayFast payment gating, and Meta
-Pixel/Conversions API tracking so ad spend is measurable.
+pages, a multi-step intake wizard whose completed booking request is emailed to the attorney, and
+Meta Pixel/Conversions API tracking so ad spend is measurable. There is no online payment — the
+session fee is arranged directly, and the admin marks it paid on the booking.
 
 Status: in progress. This README documents what exists today and is updated as each build stage
 lands (see the implementation plan for the full stage list).
@@ -43,9 +44,25 @@ See [`.env.example`](.env.example), [`.env.test.example`](.env.test.example), an
 [`.env.production.example`](.env.production.example) for the full, documented list. All required
 variables are validated at server startup (`src/lib/env.ts`, invoked from
 `src/instrumentation.ts`) — the server refuses to start with missing/invalid configuration rather
-than falling back to insecure defaults. `APP_ENV=production` additionally requires the PayFast,
-storage, and email variables needed for a real deployment; `next build` itself needs no secrets at
+than falling back to insecure defaults. `APP_ENV=production` additionally requires the storage and
+email variables needed for a real deployment (a real `EMAIL_DRIVER` and `ADMIN_NOTIFICATION_EMAIL`,
+because booking requests are delivered by email); `next build` itself needs no secrets at
 all (verified — a build with a completely empty environment succeeds).
+
+## Booking request emails
+
+When a client submits the booking form, the request is saved and then emailed to
+`ADMIN_NOTIFICATION_EMAIL` (reply-to is the client, so you can answer straight from your inbox),
+and the client gets a short receipt. The email contains every answer plus a link to the booking
+in `/admin/bookings`, where uploaded documents are downloaded (admin-only, every download is
+audit-logged). If delivery fails the booking is **not** lost: it shows as "Not sent" in the admin
+list with a **Resend email** button.
+
+- **Local development:** `docker compose up -d mailpit`, then open http://localhost:8026 — every email
+  is caught there instead of being sent. Set `EMAIL_DRIVER=smtp`, `SMTP_HOST=localhost`, `SMTP_PORT=1026`.
+- **TEST/PRODUCTION:** set `EMAIL_DRIVER=resend` (+ `RESEND_API_KEY` and a verified sending domain)
+  **or** `EMAIL_DRIVER=smtp` (host/port/user/password — e.g. Gmail SMTP with an App Password), plus
+  `EMAIL_FROM` and `ADMIN_NOTIFICATION_EMAIL`. Production refuses to start with `EMAIL_DRIVER=console`.
 
 ## Database
 

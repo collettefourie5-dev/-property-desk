@@ -38,11 +38,6 @@ const baseSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   SMTP_SECURE: booleanish.optional(),
 
-  // PayFast
-  PAYFAST_MODE: z.enum(['sandbox', 'live']).default('sandbox'),
-  PAYFAST_MERCHANT_ID: z.string().optional(),
-  PAYFAST_MERCHANT_KEY: z.string().optional(),
-  PAYFAST_PASSPHRASE: z.string().optional(),
 
   // Meta tracking
   META_PIXEL_ID: z.string().optional(),
@@ -94,8 +89,13 @@ function requireInProduction(env: Env, issues: string[]) {
     issues.push('EMAIL_FROM is required when EMAIL_DRIVER is not "console"');
   }
 
-  if (!env.PAYFAST_MERCHANT_ID || !env.PAYFAST_MERCHANT_KEY) {
-    issues.push('PAYFAST_MERCHANT_ID and PAYFAST_MERCHANT_KEY are required in production');
+  // Booking requests reach the attorney by email, so a live deployment that can't send email
+  // would silently swallow every request — refuse to start instead.
+  if (env.EMAIL_DRIVER === 'console') {
+    issues.push('EMAIL_DRIVER must be "resend" or "smtp" in production (booking requests are delivered by email)');
+  }
+  if (!env.ADMIN_NOTIFICATION_EMAIL) {
+    issues.push('ADMIN_NOTIFICATION_EMAIL is required in production (where booking requests are sent)');
   }
 }
 

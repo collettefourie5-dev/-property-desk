@@ -60,7 +60,7 @@ export default async function BookStepPage(props: PageProps<'/book/[step]'>) {
   const step: Step = parsed.data;
 
   const booking = await getBookingByToken(await getDraftToken());
-  if (booking?.intakeSubmittedAt) redirect('/book/payment');
+  if (booking?.intakeSubmittedAt) redirect('/book/confirmation');
 
   // Server-side guard: nobody can jump ahead of the first step that still needs input.
   const allowed = firstIncompleteStep(booking, STEPS);
@@ -92,7 +92,10 @@ export default async function BookStepPage(props: PageProps<'/book/[step]'>) {
       ) : step === 'review' && booking ? (
         <>
           <h1 className="mt-6 font-serif text-3xl">Check your details</h1>
-          <p className="mt-2 mb-6 text-muted">Next you will pay {'R1,250'} to secure your session, then choose a time.</p>
+          <p className="mt-2 mb-6 text-muted">
+            When you send this request it goes straight to the attorney, who will contact you to arrange your
+            session.
+          </p>
           <dl className="mb-8 divide-y divide-black/10 rounded-lg border border-black/10 bg-white">
             {reviewRows(booking).map((row) => (
               <div key={`${row.step}-${row.label}`} className="flex flex-col gap-1 px-4 py-3">
@@ -110,7 +113,7 @@ export default async function BookStepPage(props: PageProps<'/book/[step]'>) {
             step="review"
             fields={[]}
             defaults={{}}
-            submitLabel="Continue to payment"
+            submitLabel="Send my booking request"
             backHref={backHref}
           />
         </>

@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 
 const steps = [
   {
-    title: 'Check your email',
-    body: 'You will receive a booking confirmation with your session time. If you can’t find it, check your spam folder.',
+    title: 'We get in touch',
+    body: 'You will be contacted by email or phone to arrange your session time. You will also have received a receipt for your request — if you can’t find it, check your spam folder.',
   },
   {
     title: 'Send us your documents',
