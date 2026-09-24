@@ -45,7 +45,7 @@ const baseSchema = z.object({
   PAYFAST_PASSPHRASE: z.string().optional(),
 
   // Meta tracking
-  NEXT_PUBLIC_META_PIXEL_ID: z.string().optional(),
+  META_PIXEL_ID: z.string().optional(),
   META_CAPI_ACCESS_TOKEN: z.string().optional(),
   META_TEST_EVENT_CODE: z.string().optional(),
 

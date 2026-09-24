@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getSessionCookie } from 'better-auth/cookies';
+import {
+  ATTRIBUTION_COOKIE,
+  ATTRIBUTION_MAX_AGE_SECONDS,
+  attributionFromParams,
+  serializeAttribution,
+} from '@/lib/attribution';
 
 // Nonce-based CSP (`strict-dynamic` + a fresh nonce per request) is the tightest option, but
 // it requires *every* route serving a script to be dynamically rendered — Next.js can't stamp
@@ -51,6 +57,19 @@ export function proxy(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('x-request-id', requestId);
   response.headers.set('Content-Security-Policy', CSP);
+
+  // Preserve ad attribution (UTMs + landing-page variant) from the first ad-click landing
+  // through to the booking/confirmation, so bookings trace back to the ad that produced them.
+  const attribution = attributionFromParams(request.nextUrl.searchParams);
+  if (attribution) {
+    response.cookies.set(ATTRIBUTION_COOKIE, serializeAttribution(attribution), {
+      maxAge: ATTRIBUTION_MAX_AGE_SECONDS,
+      path: '/',
+      sameSite: 'lax',
+      httpOnly: true,
+      secure: request.nextUrl.protocol === 'https:',
+    });
+  }
   return response;
 }
 
