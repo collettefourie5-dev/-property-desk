@@ -165,7 +165,8 @@ model Booking {
   utmTerm     String?
   landingPageVariantSlug String?
 
-  consentGivenAt DateTime?
+  consentGivenAt    DateTime?
+  intakeSubmittedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
