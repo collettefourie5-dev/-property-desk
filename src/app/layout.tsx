@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = { width: 'device-width', initialScale: 1 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  // Request-time rendering: runtime config (pixel ID, LPC details) must not be frozen at build.
+  // Request-time rendering: runtime config (pixel ID, firm details) must not be frozen at build.
   await connection();
 
   return (
