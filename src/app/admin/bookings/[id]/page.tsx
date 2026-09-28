@@ -15,7 +15,11 @@ export default async function AdminBookingPage(props: PageProps<'/admin/bookings
 
   const booking = await prisma.booking.findFirst({
     where: { id, intakeSubmittedAt: { not: null } },
-    include: { documents: { orderBy: { uploadedAt: 'asc' } }, timeSlot: { select: { id: true, startsAt: true } } },
+    include: {
+      documents: { orderBy: { uploadedAt: 'asc' } },
+      timeSlot: { select: { id: true, startsAt: true } },
+      trackedEvents: { where: { eventName: { in: ['LEAD', 'SCHEDULE'] } }, orderBy: { eventName: 'asc' } },
+    },
   });
   if (!booking) notFound();
 
@@ -112,6 +116,20 @@ export default async function AdminBookingPage(props: PageProps<'/admin/bookings
           </form>
         </div>
       </section>
+
+      {booking.trackedEvents.length > 0 && (
+        <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-4">
+          <h2 className="mb-2 text-sm font-medium text-neutral-500">Meta tracking</h2>
+          <ul className="space-y-1 text-sm">
+            {booking.trackedEvents.map((e) => (
+              <li key={e.id}>
+                {e.eventName === 'LEAD' ? 'Lead' : 'Schedule'}:{' '}
+                {!e.capiFiredAt ? 'not sent yet' : e.capiSuccess ? 'sent to Meta ✓' : 'failed to send'}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }

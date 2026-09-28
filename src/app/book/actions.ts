@@ -17,6 +17,7 @@ import {
   updateContact,
 } from '@/server/services/booking';
 import { notifyNewBooking } from '@/server/services/notifications';
+import { sendPendingCapiEvents } from '@/server/services/tracking';
 
 export type FormState =
   | { errors?: Record<string, string[]>; message?: string; values?: Record<string, string> }
@@ -69,9 +70,20 @@ export async function saveStepAction(_prev: FormState, formData: FormData): Prom
     } else if (step === 'review') {
       if (!token) return { message: 'Your session has expired. Please start again.', values };
       const submitted = await submitIntake(token, STEPS);
-      // Email the attorney after the response is sent; the booking is already saved, so a slow or
-      // failed email never blocks or loses the request (see notifyNewBooking).
+      // Read request-scoped data now — after() preserves access to it, but capturing explicitly
+      // avoids any doubt about cookies()/headers() still being valid once the response has sent.
+      const requestHeaders = await headers();
+      const requestCookies = await cookies();
+      const capiContext = {
+        ip: clientIp(requestHeaders),
+        userAgent: requestHeaders.get('user-agent') ?? undefined,
+        fbc: requestCookies.get('_fbc')?.value,
+        fbp: requestCookies.get('_fbp')?.value,
+      };
+      // Email + Meta CAPI after the response is sent; the booking is already saved, so neither
+      // being slow or failing can block or lose the request (see notifyNewBooking).
       after(() => notifyNewBooking(submitted.id));
+      after(() => sendPendingCapiEvents(submitted.id, capiContext));
     } else {
       if (!token) return { message: 'Your session has expired. Please start again.', values };
       await saveStep(token, step, values);

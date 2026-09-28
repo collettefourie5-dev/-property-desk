@@ -209,6 +209,7 @@ export async function submitIntake(token: string, steps: readonly Step[]): Promi
   if (missing) throw new ValidationError(`Please complete the "${missing}" step first`);
 
   const result = await prisma.$transaction(async (tx) => {
+    let slotClaimed = false;
     if (booking.preferredSlotId) {
       const claimed = await tx.timeSlot.updateMany({
         where: {
@@ -220,7 +221,20 @@ export async function submitIntake(token: string, steps: readonly Step[]): Promi
         data: { status: 'BOOKED', bookingId: booking.id },
       });
       if (claimed.count === 0) return null; // lost the race; nothing was written
+      slotClaimed = true;
     }
+
+    // event_id here, shared with the client-side fbq() call for the same logical event, is what
+    // lets Meta dedupe the browser and server copies of Lead/Schedule instead of double-counting.
+    await tx.trackedEvent.create({
+      data: { bookingId: booking.id, eventName: 'LEAD', eventId: randomUUID() },
+    });
+    if (slotClaimed) {
+      await tx.trackedEvent.create({
+        data: { bookingId: booking.id, eventName: 'SCHEDULE', eventId: randomUUID() },
+      });
+    }
+
     return tx.booking.update({
       where: { id: booking.id },
       data: { intakeSubmittedAt: new Date() },

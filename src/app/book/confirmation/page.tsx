@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db/prisma';
 import { formatSlotFull } from '@/lib/time';
 import { LANGUAGES } from '@/lib/validation/booking';
 import { getBookingByToken } from '@/server/services/booking';
+import { FirePixelEvents, type PixelEvent } from '@/components/tracking/fire-pixel-events';
 
 export default async function ConfirmationPage() {
   const booking = await getBookingByToken(await getDraftToken());
@@ -13,9 +14,18 @@ export default async function ConfirmationPage() {
   const site = getSiteConfig();
   const slot = await prisma.timeSlot.findUnique({ where: { bookingId: booking.id }, select: { startsAt: true } });
   const language = LANGUAGES.find((l) => l.value === booking.sessionLanguage)?.label;
+  const trackedEvents = await prisma.trackedEvent.findMany({
+    where: { bookingId: booking.id, eventName: { in: ['LEAD', 'SCHEDULE'] } },
+    select: { eventName: true, eventId: true },
+  });
+  const pixelEvents: PixelEvent[] = trackedEvents.map((e) => ({
+    name: e.eventName === 'LEAD' ? 'Lead' : 'Schedule',
+    eventId: e.eventId,
+  }));
 
   return (
     <main>
+      <FirePixelEvents bookingId={booking.id} events={pixelEvents} />
       <p className="text-sm font-medium uppercase tracking-widest text-accent">Request received</p>
       <h1 className="mt-2 font-serif text-3xl">Thank you, {booking.fullName?.split(' ')[0]}.</h1>
       <p className="mt-4 text-lg">

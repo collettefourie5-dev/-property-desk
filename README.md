@@ -49,6 +49,23 @@ email variables needed for a real deployment (a real `EMAIL_DRIVER` and `ADMIN_N
 because booking requests are delivered by email); `next build` itself needs no secrets at
 all (verified — a build with a completely empty environment succeeds).
 
+## Meta Pixel / Conversions API
+
+Two events, both fired the moment a booking request is submitted (there is no payment, so there
+is no Purchase event): **Lead** always, and **Schedule** additionally when a time slot was
+actually claimed. Each event fires twice on purpose — once client-side (the Pixel, on
+`/book/confirmation`) and once server-side (Conversions API, from `after()` in the submit
+action) — sharing one `event_id` per logical event so Meta dedupes them into a single event
+instead of double-counting. The client fire is guarded by `localStorage` so revisiting the
+confirmation page never re-fires it.
+
+Set `META_PIXEL_ID` and `META_CAPI_ACCESS_TOKEN` to enable both; with either unset, tracking is a
+no-op everywhere (nothing loads client-side, nothing is sent server-side) — booking submission,
+email, and everything else works identically regardless. `META_TEST_EVENT_CODE` (from Meta's Test
+Events tool) is included in the CAPI payload only when set, for verifying delivery before a real
+campaign runs. A CAPI failure never affects the booking — it's recorded on the `TrackedEvent` row
+and shown on the booking's admin page ("Lead: failed to send"), with no retry loop.
+
 ## Calendar
 
 The attorney sets when sessions can be booked in `/admin/availability` (add times in bulk — e.g.
