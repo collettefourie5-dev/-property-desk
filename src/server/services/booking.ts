@@ -149,7 +149,8 @@ export async function addDocument(
 ): Promise<{ id: string; originalName: string; sizeBytes: number }> {
   const booking = await getBookingByToken(token);
   if (!booking) throw new NotFoundError('Booking not found');
-  if (booking.intakeSubmittedAt) throw new ConflictError('This booking has already been submitted');
+  // Deliberately allowed after submission (unlike every other step): the document reminder
+  // email invites the client back to upload right up to their session, possibly days later.
   if (booking.documents.length >= MAX_DOCUMENTS) {
     throw new ValidationError(`You can upload up to ${MAX_DOCUMENTS} documents`);
   }
@@ -184,7 +185,6 @@ export async function addDocument(
 export async function removeDocument(token: string, documentId: string): Promise<void> {
   const booking = await getBookingByToken(token);
   if (!booking) throw new NotFoundError('Booking not found');
-  if (booking.intakeSubmittedAt) throw new ConflictError('This booking has already been submitted');
 
   // Ownership check: the document must belong to *this* token's booking.
   const doc = booking.documents.find((d) => d.id === documentId);

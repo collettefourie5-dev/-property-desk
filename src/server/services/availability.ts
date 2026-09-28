@@ -3,7 +3,7 @@ import { ConflictError, NotFoundError, ValidationError } from '@/lib/errors';
 import { MAX_GENERATED_SLOTS, generateSlots, type GenerateSlotsInput } from '@/lib/time';
 
 /** Clients can't book a session starting sooner than this, or further ahead than the horizon. */
-export const MIN_NOTICE_HOURS = 12;
+export const MIN_NOTICE_HOURS = 24;
 export const HORIZON_DAYS = 60;
 
 function openWindow(now: Date) {

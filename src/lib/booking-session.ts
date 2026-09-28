@@ -2,7 +2,10 @@ import { cookies } from 'next/headers';
 import { getEnv } from '@/lib/env';
 
 export const DRAFT_COOKIE = 'pd_draft';
-const SEVEN_DAYS = 60 * 60 * 24 * 7;
+// A session can be booked up to HORIZON_DAYS (60, see availability.ts) ahead, and the document
+// reminder + "upload your documents" link need the cookie to still be valid right up to that
+// session — so this must outlive the horizon, not just the few minutes/hours a wizard visit takes.
+const COOKIE_LIFETIME_DAYS = 70;
 
 export async function getDraftToken(): Promise<string | undefined> {
   return (await cookies()).get(DRAFT_COOKIE)?.value;
@@ -15,6 +18,6 @@ export async function setDraftToken(token: string): Promise<void> {
     sameSite: 'lax',
     secure: getEnv().NEXT_PUBLIC_APP_URL.startsWith('https://'),
     path: '/',
-    maxAge: SEVEN_DAYS,
+    maxAge: COOKIE_LIFETIME_DAYS * 24 * 60 * 60,
   });
 }

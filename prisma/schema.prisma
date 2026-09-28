@@ -172,9 +172,11 @@ model Booking {
   utmTerm     String?
   landingPageVariantSlug String?
 
-  consentGivenAt    DateTime?
-  intakeSubmittedAt DateTime?
-  adminNotifiedAt   DateTime?
+  consentGivenAt      DateTime?
+  intakeSubmittedAt   DateTime?
+  adminNotifiedAt     DateTime?
+  // Sent once, 12 hours before the session, only if no documents were uploaded by then.
+  docReminderSentAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

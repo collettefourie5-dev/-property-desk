@@ -16,7 +16,21 @@ function formatSize(bytes: number) {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function DocumentUploader({ initial, maxFiles }: { initial: Doc[]; maxFiles: number }) {
+interface DocumentUploaderProps {
+  initial: Doc[];
+  maxFiles: number;
+  /** Defaults to the in-wizard "Back / Skip-or-Continue" footer; pass null to render no footer at all
+   *  (e.g. the post-submission upload page, which has nowhere in the wizard to navigate back to). */
+  footer?: { backHref: string; nextHref: string } | null;
+  helperText?: string;
+}
+
+export function DocumentUploader({
+  initial,
+  maxFiles,
+  footer = { backHref: '/book/details', nextHref: '/book/intent' },
+  helperText = 'OTP, agreement or correspondence — PDF, Word or photos. Up to {max} files, 8MB each. This step is optional.',
+}: DocumentUploaderProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [docs, setDocs] = useState<Doc[]>(initial);
@@ -55,10 +69,7 @@ export function DocumentUploader({ initial, maxFiles }: { initial: Doc[]; maxFil
         <label htmlFor="documents" className="block font-medium">
           Upload your documents
         </label>
-        <p className="mb-3 text-sm text-muted">
-          OTP, agreement or correspondence — PDF, Word or photos. Up to {maxFiles} files, 8MB each. This step is
-          optional.
-        </p>
+        <p className="mb-3 text-sm text-muted">{helperText.replace('{max}', String(maxFiles))}</p>
         <input
           ref={inputRef}
           id="documents"
@@ -96,19 +107,21 @@ export function DocumentUploader({ initial, maxFiles }: { initial: Doc[]; maxFil
         </ul>
       )}
 
-      <div className="flex items-center gap-4">
-        <Link href="/book/details" className="px-2 py-3 underline underline-offset-2">
-          Back
-        </Link>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => router.push('/book/intent')}
-          className="flex-1 rounded-lg bg-brand px-6 py-4 text-lg font-semibold text-white hover:bg-brand-hover disabled:opacity-60"
-        >
-          {docs.length === 0 ? 'Skip for now' : 'Continue'}
-        </button>
-      </div>
+      {footer && (
+        <div className="flex items-center gap-4">
+          <Link href={footer.backHref} className="px-2 py-3 underline underline-offset-2">
+            Back
+          </Link>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => router.push(footer.nextHref)}
+            className="flex-1 rounded-lg bg-brand px-6 py-4 text-lg font-semibold text-white hover:bg-brand-hover disabled:opacity-60"
+          >
+            {docs.length === 0 ? 'Skip for now' : 'Continue'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

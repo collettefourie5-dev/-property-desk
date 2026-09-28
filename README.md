@@ -70,12 +70,24 @@ and shown on the booking's admin page ("Lead: failed to send"), with no retry lo
 
 The attorney sets when sessions can be booked in `/admin/availability` (add times in bulk — e.g.
 weekdays 09:00–16:00, hourly — or remove single times). Clients pick a date, time and language
-(English/Afrikaans) in the booking form; only open times inside a window from 12 hours to 60 days
+(English/Afrikaans) in the booking form; only open times inside a window from 24 hours to 60 days
 ahead are offered. Times are stored as UTC instants and always shown in South African time (SAST,
 UTC+2, no daylight saving). The chosen time is claimed atomically when the request is sent, so two
 clients can't get the same slot (the second is asked to pick another); a held time stays held until
 the attorney releases it from the booking. If the calendar has no open times, clients can still
 send a request and the attorney proposes a time. `npm run db:seed` adds a sample calendar for local testing.
+
+## Document reminder email
+
+If a client hasn't uploaded any documents by 12 hours before their session, they get one
+reminder linking to `/book/upload` (the client's booking cookie now lives 70 days — longer than
+the 60-day booking horizon — specifically so this link still works that far out; opening it on a
+different device than the one used to book won't work, since there's no separate login). Sessions
+themselves require at least 24 hours' notice to book. Checked every 15 minutes by an in-process
+timer started in `src/instrumentation.ts` — no external cron needed for a single-VM deployment.
+Each booking is only ever reminded once (`Booking.docReminderSentAt`), the check skips anyone who
+already uploaded something, and a delivery failure retries on the next sweep rather than being
+lost. The booking's admin page shows whether its reminder was sent.
 
 ## Booking request emails
 

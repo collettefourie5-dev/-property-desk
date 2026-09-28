@@ -123,3 +123,29 @@ ${opts.requestedTime ? `Requested: ${opts.requestedTime}${opts.language ? ` · $
 This is a paid consultation and not an instruction to act on your transaction.`;
   return { subject: 'We have your booking request — The Property Desk', html, text };
 }
+
+/** Sent once, 12 hours before the session, only when no documents have been uploaded yet. */
+export function documentReminderEmail(
+  b: Pick<BookingEmailData, 'fullName'>,
+  opts: { sessionTime: string; uploadUrl: string },
+): RenderedEmail {
+  const name = escapeHtml(singleLine(b.fullName ?? 'there', 60));
+  const html = `<div style="font-family:system-ui,Arial,sans-serif;max-width:560px;color:#1a1a1a">
+<h2 style="margin:0 0 12px">Your session is coming up</h2>
+<p>Hi ${name},</p>
+<p>Your Pre-Sale Property Strategy Session is on <strong>${escapeHtml(opts.sessionTime)}</strong>.</p>
+<p>We don't have any documents from you yet — if you have an OTP, agreement or correspondence relating to the transaction, uploading it beforehand means your session can be more focused.</p>
+<p><a href="${escapeHtml(opts.uploadUrl)}" style="background:#1f3a34;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;display:inline-block">Upload your documents</a></p>
+<p style="color:#5c6663;font-size:13px">If you don't have anything to upload, no action is needed — we'll see you at your session.</p>
+</div>`;
+  const text = `Hi ${singleLine(b.fullName ?? 'there', 60)},
+
+Your Pre-Sale Property Strategy Session is on ${opts.sessionTime}.
+
+We don't have any documents from you yet — if you have an OTP, agreement or correspondence relating to the transaction, uploading it beforehand means your session can be more focused.
+
+Upload your documents: ${opts.uploadUrl}
+
+If you don't have anything to upload, no action is needed — we'll see you at your session.`;
+  return { subject: 'Your session is coming up — upload your documents', html, text };
+}

@@ -61,7 +61,12 @@ export default async function AdminBookingPage(props: PageProps<'/admin/bookings
       <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-medium text-neutral-500">Documents</h2>
         {booking.documents.length === 0 ? (
-          <p className="text-sm text-neutral-500">None uploaded.</p>
+          <p className="text-sm text-neutral-500">
+            None uploaded.{' '}
+            {booking.docReminderSentAt
+              ? `Reminder sent ${booking.docReminderSentAt.toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg' })}.`
+              : 'A reminder is sent automatically 12 hours before the session if nothing has been uploaded by then.'}
+          </p>
         ) : (
           <ul className="space-y-2">
             {booking.documents.map((d) => (
