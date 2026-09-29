@@ -9,7 +9,7 @@ export interface StepConfig {
 }
 
 /** Field definitions per step — plain data so they can cross into the client form component. */
-export const stepConfig: Record<Exclude<Step, 'documents' | 'schedule' | 'review'>, StepConfig> = {
+export const stepConfig: Record<Exclude<Step, 'schedule' | 'review'>, StepConfig> = {
   contact: {
     title: 'Your contact details',
     intro: 'We use your email to personally confirm your session, take you through pricing, and ask anything further we need to know about the transaction.',
@@ -96,5 +96,12 @@ export const stepConfig: Record<Exclude<Step, 'documents' | 'schedule' | 'review
         maxLength: 1000,
       },
     ],
+  },
+  documents: {
+    title: 'What you’ll need',
+    intro:
+      'You don’t need to upload anything here. Before your session, we may email you asking for copies of documents relevant to your transaction — for example an Offer to Purchase, a sale agreement, or related correspondence.',
+    submitLabel: 'Continue',
+    fields: [],
   },
 };

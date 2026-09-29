@@ -36,9 +36,6 @@ yarn-error.log*
 !.env.test.example
 !.env.production.example
 
-# local file uploads (dev-only storage driver)
-/uploads
-
 # generated Prisma client (regenerated via `prisma generate` / postinstall)
 /src/generated
 

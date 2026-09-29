@@ -26,7 +26,6 @@ const booking: BookingEmailData = {
   sessionLanguage: 'AFRIKAANS',
   timeSlot: { startsAt: new Date('2026-10-05T07:00:00Z') },
   createdAt: new Date('2026-09-24T08:00:00Z'),
-  documents: [{ originalName: 'OTP.pdf', sizeBytes: 20480 }],
 };
 
 describe('bookingRequestEmail', () => {
@@ -42,7 +41,6 @@ describe('bookingRequestEmail', () => {
       'Joint owners',
       'Penalty clause',
       'Exit safely',
-      'OTP.pdf',
       'facebook / c1 / ad3 / price',
       'Afrikaans',
       '5 October at 09:00 (South African time)',

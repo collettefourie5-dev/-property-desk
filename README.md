@@ -44,10 +44,10 @@ See [`.env.example`](.env.example), [`.env.test.example`](.env.test.example), an
 [`.env.production.example`](.env.production.example) for the full, documented list. All required
 variables are validated at server startup (`src/lib/env.ts`, invoked from
 `src/instrumentation.ts`) — the server refuses to start with missing/invalid configuration rather
-than falling back to insecure defaults. `APP_ENV=production` additionally requires the storage and
-email variables needed for a real deployment (a real `EMAIL_DRIVER` and `ADMIN_NOTIFICATION_EMAIL`,
-because booking requests are delivered by email); `next build` itself needs no secrets at
-all (verified — a build with a completely empty environment succeeds).
+than falling back to insecure defaults. `APP_ENV=production` additionally requires a real
+`EMAIL_DRIVER` and `ADMIN_NOTIFICATION_EMAIL`, because booking requests are delivered by email;
+`next build` itself needs no secrets at all (verified — a build with a completely empty
+environment succeeds).
 
 ## Meta Pixel / Conversions API
 
@@ -77,26 +77,18 @@ clients can't get the same slot (the second is asked to pick another); a held ti
 the attorney releases it from the booking. If the calendar has no open times, clients can still
 send a request and the attorney proposes a time. `npm run db:seed` adds a sample calendar for local testing.
 
-## Document reminder email
-
-If a client hasn't uploaded any documents by 12 hours before their session, they get one
-reminder linking to `/book/upload` (the client's booking cookie now lives 70 days — longer than
-the 60-day booking horizon — specifically so this link still works that far out; opening it on a
-different device than the one used to book won't work, since there's no separate login). Sessions
-themselves require at least 24 hours' notice to book. Checked every 15 minutes by an in-process
-timer started in `src/instrumentation.ts` — no external cron needed for a single-VM deployment.
-Each booking is only ever reminded once (`Booking.docReminderSentAt`), the check skips anyone who
-already uploaded something, and a delivery failure retries on the next sweep rather than being
-lost. The booking's admin page shows whether its reminder was sent.
-
 ## Booking request emails
+
+There is no document upload on the site — the attorney requests any documents she needs (OTP,
+agreement, correspondence) directly from the client by email after the booking request comes in;
+the "What you'll need" step in the wizard is purely informational. Sessions require at least 24
+hours' notice to book.
 
 When a client submits the booking form, the request is saved and then emailed to
 `ADMIN_NOTIFICATION_EMAIL` (reply-to is the client, so you can answer straight from your inbox),
-and the client gets a short receipt. The email contains every answer plus a link to the booking
-in `/admin/bookings`, where uploaded documents are downloaded (admin-only, every download is
-audit-logged). If delivery fails the booking is **not** lost: it shows as "Not sent" in the admin
-list with a **Resend email** button.
+and the client gets a short receipt. The email contains every answer plus a link to the booking in
+`/admin/bookings`. If delivery fails the booking is **not** lost: it shows as "Not sent" in the
+admin list with a **Resend email** button.
 
 - **Local development:** `docker compose up -d mailpit`, then open http://localhost:8026 — every email
   is caught there instead of being sent. Set `EMAIL_DRIVER=smtp`, `SMTP_HOST=localhost`, `SMTP_PORT=1026`.

@@ -24,7 +24,6 @@ export interface BookingEmailData {
   /** The slot the client asked for (null when the calendar had no open times). */
   timeSlot: { startsAt: Date } | null;
   createdAt: Date;
-  documents: { originalName: string; sizeBytes: number }[];
 }
 
 export interface RenderedEmail {
@@ -38,9 +37,6 @@ const dash = (v: string | null | undefined) => (v && v.trim() ? v : '—');
 export function bookingDetailRows(b: BookingEmailData): [string, string][] {
   const stage = STAGES.find((s) => s.value === b.stage)?.label ?? dash(b.stage);
   const ownership = OWNERSHIPS.find((o) => o.value === b.ownershipStructure)?.label ?? dash(b.ownershipStructure);
-  const docs = b.documents.length
-    ? b.documents.map((d) => `${d.originalName} (${Math.max(1, Math.round(d.sizeBytes / 1024))} KB)`).join(', ')
-    : 'None uploaded';
 
   return [
     ['Name', dash(b.fullName)],
@@ -53,7 +49,6 @@ export function bookingDetailRows(b: BookingEmailData): [string, string][] {
     ['The transaction', dash(b.transactionSummary)],
     ['Main concern', dash(b.mainConcern)],
     ['Goal for the session', dash(b.desiredOutcome)],
-    ['Documents', docs],
     ['Session language', LANGUAGES.find((l) => l.value === b.sessionLanguage)?.label ?? dash(b.sessionLanguage)],
     [
       'Requested time',
@@ -81,7 +76,7 @@ ${details
   .join('\n')}
 </table>
 ${source ? `<p style="margin:20px 0 0;color:#5c6663;font-size:13px">Came from: ${escapeHtml(source)}</p>` : ''}
-<p style="margin:24px 0 0"><a href="${escapeHtml(opts.adminUrl)}" style="background:#1f3a34;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;display:inline-block">Open booking &amp; documents</a></p>
+<p style="margin:24px 0 0"><a href="${escapeHtml(opts.adminUrl)}" style="background:#1f3a34;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;display:inline-block">Open booking</a></p>
 <p style="margin:16px 0 0;color:#5c6663;font-size:13px">Reply to this email to reach ${escapeHtml(dash(b.fullName))} directly.</p>
 </div>`;
 
@@ -92,7 +87,7 @@ ${source ? `<p style="margin:20px 0 0;color:#5c6663;font-size:13px">Came from: $
     ...details.map(([label, value]) => `${label}: ${value}`),
     source ? `\nCame from: ${source}` : '',
     '',
-    `Open booking & documents: ${opts.adminUrl}`,
+    `Open booking: ${opts.adminUrl}`,
     'Reply to this email to reach the client directly.',
   ].join('\n');
 
@@ -122,30 +117,4 @@ ${opts.requestedTime ? `Requested: ${opts.requestedTime}${opts.language ? ` · $
 
 This is a paid consultation and not an instruction to act on your transaction.`;
   return { subject: 'We have your booking request — The Property Desk', html, text };
-}
-
-/** Sent once, 12 hours before the session, only when no documents have been uploaded yet. */
-export function documentReminderEmail(
-  b: Pick<BookingEmailData, 'fullName'>,
-  opts: { sessionTime: string; uploadUrl: string },
-): RenderedEmail {
-  const name = escapeHtml(singleLine(b.fullName ?? 'there', 60));
-  const html = `<div style="font-family:system-ui,Arial,sans-serif;max-width:560px;color:#1a1a1a">
-<h2 style="margin:0 0 12px">Your session is coming up</h2>
-<p>Hi ${name},</p>
-<p>Your Pre-Sale Property Strategy Session is on <strong>${escapeHtml(opts.sessionTime)}</strong>.</p>
-<p>We don't have any documents from you yet — if you have an OTP, agreement or correspondence relating to the transaction, uploading it beforehand means your session can be more focused.</p>
-<p><a href="${escapeHtml(opts.uploadUrl)}" style="background:#1f3a34;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;display:inline-block">Upload your documents</a></p>
-<p style="color:#5c6663;font-size:13px">If you don't have anything to upload, no action is needed — we'll see you at your session.</p>
-</div>`;
-  const text = `Hi ${singleLine(b.fullName ?? 'there', 60)},
-
-Your Pre-Sale Property Strategy Session is on ${opts.sessionTime}.
-
-We don't have any documents from you yet — if you have an OTP, agreement or correspondence relating to the transaction, uploading it beforehand means your session can be more focused.
-
-Upload your documents: ${opts.uploadUrl}
-
-If you don't have anything to upload, no action is needed — we'll see you at your session.`;
-  return { subject: 'Your session is coming up — upload your documents', html, text };
 }

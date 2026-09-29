@@ -175,32 +175,15 @@ model Booking {
   consentGivenAt      DateTime?
   intakeSubmittedAt   DateTime?
   adminNotifiedAt     DateTime?
-  // Sent once, 12 hours before the session, only if no documents were uploaded by then.
-  docReminderSentAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  documents     BookingDocument[]
   trackedEvents TrackedEvent[]
 
   @@index([email])
   @@index([paymentStatus])
   @@map("booking")
-}
-
-model BookingDocument {
-  id           String   @id @default(cuid())
-  bookingId    String
-  booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  storageKey   String
-  originalName String
-  mimeType     String
-  sizeBytes    Int
-  uploadedAt   DateTime @default(now())
-
-  @@index([bookingId])
-  @@map("booking_document")
 }
 
 model TimeSlot {

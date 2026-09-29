@@ -1,30 +1,22 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/db/prisma';
-import { getStorage } from '@/lib/storage';
 import { deleteSlots, makeSlot } from '@/test/slots';
 import { STEPS } from '@/lib/validation/booking';
 import {
-  addDocument,
   createDraft,
   firstIncompleteStep,
   getBookingByToken,
   hashToken,
-  removeDocument,
   saveStep,
   submitIntake,
 } from '@/server/services/booking';
 
 const email = `integration-${Date.now()}@example.com`;
-const pdf = () => Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(64)]);
 
 describe('booking service (integration, real Postgres)', () => {
-  const cleanupKeys: string[] = [];
   const slotIds: string[] = [];
 
   afterAll(async () => {
-    const bookings = await prisma.booking.findMany({ where: { email }, include: { documents: true } });
-    for (const b of bookings) for (const d of b.documents) cleanupKeys.push(d.storageKey);
-    await Promise.all(cleanupKeys.map((k) => getStorage().delete(k).catch(() => undefined)));
     await prisma.booking.deleteMany({ where: { email } });
     await deleteSlots(slotIds);
     await prisma.$disconnect();
@@ -85,25 +77,5 @@ describe('booking service (integration, real Postgres)', () => {
     const b = await getBookingByToken(token);
     expect(b?.paymentStatus).toBe('PENDING');
     expect(Number(b?.amount)).toBe(1250);
-  });
-
-  it('accepts real documents, rejects disguised ones, and enforces ownership on removal', async () => {
-    const a = await createDraft({ fullName: 'Owner A', email, phone: '0821234567' }, {});
-    const b = await createDraft({ fullName: 'Owner B', email, phone: '0821234567' }, {});
-
-    const doc = await addDocument(a.token, { name: 'offer.pdf', bytes: pdf() });
-    expect(doc.originalName).toBe('offer.pdf');
-
-    await expect(
-      addDocument(a.token, { name: 'invoice.pdf', bytes: Buffer.from('MZ\u0090 not really a pdf') }),
-    ).rejects.toThrow(/Only PDF/);
-    await expect(addDocument(a.token, { name: 'empty.pdf', bytes: Buffer.alloc(0) })).rejects.toThrow(/empty/);
-
-    // B cannot delete A's document just by knowing its id.
-    await expect(removeDocument(b.token, doc.id)).rejects.toThrow(/not found/i);
-    expect(await prisma.bookingDocument.count({ where: { id: doc.id } })).toBe(1);
-
-    await removeDocument(a.token, doc.id);
-    expect(await prisma.bookingDocument.count({ where: { id: doc.id } })).toBe(0);
   });
 });

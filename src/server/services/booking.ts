@@ -1,18 +1,9 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/db/prisma';
 import type { Attribution } from '@/lib/attribution';
-import { getStorage } from '@/lib/storage';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/errors';
-import {
-  ALLOWED_DOCUMENT_TYPES,
-  MAX_DOCUMENTS,
-  MAX_DOCUMENT_BYTES,
-  safeDisplayName,
-  sniffDocumentType,
-  stepSchemas,
-  type Step,
-} from '@/lib/validation/booking';
-import type { Prisma } from '@/generated/prisma/client';
+import { stepSchemas, type Step } from '@/lib/validation/booking';
+import type { Booking, Prisma } from '@/generated/prisma/client';
 import { assertSlotOpen, hasOpenSlots } from '@/server/services/availability';
 
 /**
@@ -29,19 +20,13 @@ export function newDraftToken(): string {
   return randomBytes(32).toString('base64url');
 }
 
-const withDocuments = { documents: { orderBy: { uploadedAt: 'asc' as const } } };
-export type BookingWithDocuments = Prisma.BookingGetPayload<{ include: typeof withDocuments }>;
-
-export async function getBookingByToken(token: string | undefined): Promise<BookingWithDocuments | null> {
+export async function getBookingByToken(token: string | undefined): Promise<Booking | null> {
   if (!token) return null;
-  return prisma.booking.findUnique({
-    where: { draftToken: hashToken(token) },
-    include: withDocuments,
-  });
+  return prisma.booking.findUnique({ where: { draftToken: hashToken(token) } });
 }
 
-/** True when the fields a step requires are already saved. Documents are optional, so never block. */
-export function isStepComplete(booking: BookingWithDocuments, step: Step, slotsAvailable = true): boolean {
+/** True when the fields a step requires are already saved. */
+export function isStepComplete(booking: Booking, step: Step, slotsAvailable = true): boolean {
   switch (step) {
     case 'contact':
       return Boolean(booking.fullName && booking.email && booking.phone && booking.consentGivenAt);
@@ -56,6 +41,7 @@ export function isStepComplete(booking: BookingWithDocuments, step: Step, slotsA
     case 'details':
       return Boolean(booking.transactionSummary && booking.mainConcern);
     case 'documents':
+      // Purely informational (what the attorney will ask for by email) — never blocks progress.
       return true;
     case 'intent':
       return Boolean(booking.desiredOutcome);
@@ -70,7 +56,7 @@ export function isStepComplete(booking: BookingWithDocuments, step: Step, slotsA
 
 /** The earliest step still needing input — the server refuses to let anyone skip ahead of it. */
 export function firstIncompleteStep(
-  booking: BookingWithDocuments | null,
+  booking: Booking | null,
   steps: readonly Step[],
   slotsAvailable = true,
 ): Step {
@@ -143,63 +129,12 @@ export async function updateContact(
   });
 }
 
-export async function addDocument(
-  token: string,
-  file: { name: string; bytes: Buffer },
-): Promise<{ id: string; originalName: string; sizeBytes: number }> {
-  const booking = await getBookingByToken(token);
-  if (!booking) throw new NotFoundError('Booking not found');
-  // Deliberately allowed after submission (unlike every other step): the document reminder
-  // email invites the client back to upload right up to their session, possibly days later.
-  if (booking.documents.length >= MAX_DOCUMENTS) {
-    throw new ValidationError(`You can upload up to ${MAX_DOCUMENTS} documents`);
-  }
-  if (file.bytes.length === 0) throw new ValidationError('That file is empty');
-  if (file.bytes.length > MAX_DOCUMENT_BYTES) {
-    throw new ValidationError(`Each file must be ${MAX_DOCUMENT_BYTES / 1024 / 1024}MB or smaller`);
-  }
-
-  const mimeType = sniffDocumentType(file.bytes);
-  if (!mimeType) throw new ValidationError('Only PDF, Word documents and images (JPG, PNG, WebP, HEIC) are accepted');
-
-  const storageKey = `bookings/${booking.id}/${randomUUID()}.${ALLOWED_DOCUMENT_TYPES[mimeType]}`;
-  await getStorage().put(storageKey, file.bytes, mimeType);
-
-  try {
-    const doc = await prisma.bookingDocument.create({
-      data: {
-        bookingId: booking.id,
-        storageKey,
-        originalName: safeDisplayName(file.name),
-        mimeType,
-        sizeBytes: file.bytes.length,
-      },
-    });
-    return { id: doc.id, originalName: doc.originalName, sizeBytes: doc.sizeBytes };
-  } catch (error) {
-    await getStorage().delete(storageKey).catch(() => undefined);
-    throw error;
-  }
-}
-
-export async function removeDocument(token: string, documentId: string): Promise<void> {
-  const booking = await getBookingByToken(token);
-  if (!booking) throw new NotFoundError('Booking not found');
-
-  // Ownership check: the document must belong to *this* token's booking.
-  const doc = booking.documents.find((d) => d.id === documentId);
-  if (!doc) throw new NotFoundError('Document not found');
-
-  await prisma.bookingDocument.delete({ where: { id: doc.id } });
-  await getStorage().delete(doc.storageKey).catch(() => undefined);
-}
-
 /**
  * Locks the intake in and claims the chosen time slot. Everything required must already be
  * complete — re-checked here, not just in the UI. The claim is atomic, so two clients racing for
  * the same slot can't both get it: the loser gets a ConflictError and picks another time.
  */
-export async function submitIntake(token: string, steps: readonly Step[]): Promise<BookingWithDocuments> {
+export async function submitIntake(token: string, steps: readonly Step[]): Promise<Booking> {
   const booking = await getBookingByToken(token);
   if (!booking) throw new NotFoundError('Booking not found');
   if (booking.intakeSubmittedAt) return booking;
@@ -238,7 +173,6 @@ export async function submitIntake(token: string, steps: readonly Step[]): Promi
     return tx.booking.update({
       where: { id: booking.id },
       data: { intakeSubmittedAt: new Date() },
-      include: withDocuments,
     });
   });
 

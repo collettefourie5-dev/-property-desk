@@ -1,28 +1,16 @@
 import { notFound, redirect } from 'next/navigation';
-import { DocumentUploader } from '@/components/booking/document-uploader';
 import { SchedulePicker, type DayOption } from '@/components/booking/schedule-picker';
 import { StepForm } from '@/components/booking/step-form';
 import { getDraftToken } from '@/lib/booking-session';
 import { prisma } from '@/lib/db/prisma';
 import { formatSlotDate, formatSlotFull, formatSlotTime, sastDateKey } from '@/lib/time';
 import { hasOpenSlots, listOpenSlots } from '@/server/services/availability';
-import {
-  LANGUAGES,
-  MAX_DOCUMENTS,
-  OWNERSHIPS,
-  STAGES,
-  STEPS,
-  stepSchema,
-  type Step,
-} from '@/lib/validation/booking';
-import {
-  firstIncompleteStep,
-  getBookingByToken,
-  type BookingWithDocuments,
-} from '@/server/services/booking';
+import { LANGUAGES, OWNERSHIPS, STAGES, STEPS, stepSchema, type Step } from '@/lib/validation/booking';
+import { firstIncompleteStep, getBookingByToken } from '@/server/services/booking';
+import type { Booking } from '@/generated/prisma/client';
 import { stepConfig } from '../steps-config';
 
-function defaultsFor(booking: BookingWithDocuments | null): Record<string, string> {
+function defaultsFor(booking: Booking | null): Record<string, string> {
   if (!booking) return {};
   const values: Record<string, string | null | undefined> = {
     fullName: booking.fullName,
@@ -42,7 +30,7 @@ function defaultsFor(booking: BookingWithDocuments | null): Record<string, strin
 }
 
 const reviewRows = (
-  b: BookingWithDocuments,
+  b: Booking,
   requestedTime: string,
 ): { step: Step; label: string; value: string }[] => [
   { step: 'contact', label: 'Name', value: b.fullName ?? '' },
@@ -58,7 +46,6 @@ const reviewRows = (
   { step: 'parties', label: 'Other parties', value: b.otherParties ?? '' },
   { step: 'details', label: 'The transaction', value: b.transactionSummary ?? '' },
   { step: 'details', label: 'Main concern', value: b.mainConcern ?? '' },
-  { step: 'documents', label: 'Documents', value: b.documents.map((d) => d.originalName).join(', ') || 'None uploaded' },
   { step: 'intent', label: 'Goal for the session', value: b.desiredOutcome ?? '' },
   {
     step: 'schedule',
@@ -80,7 +67,7 @@ async function buildDays(): Promise<DayOption[]> {
   return [...days.values()];
 }
 
-async function requestedTimeLabel(b: BookingWithDocuments): Promise<string> {
+async function requestedTimeLabel(b: Booking): Promise<string> {
   if (!b.preferredSlotId) return 'No time chosen — we will contact you to arrange one';
   const slot = await prisma.timeSlot.findUnique({ where: { id: b.preferredSlotId }, select: { startsAt: true } });
   return slot ? formatSlotFull(slot.startsAt) : 'Please choose a time';
@@ -123,14 +110,6 @@ export default async function BookStepPage(props: PageProps<'/book/[step]'>) {
             defaultLanguage={booking.sessionLanguage ?? undefined}
             defaultSlotId={booking.preferredSlotId ?? undefined}
             backHref={backHref}
-          />
-        </>
-      ) : step === 'documents' && booking ? (
-        <>
-          <h1 className="mt-6 mb-6 font-serif text-3xl">Your documents</h1>
-          <DocumentUploader
-            initial={booking.documents.map(({ id, originalName, sizeBytes }) => ({ id, originalName, sizeBytes }))}
-            maxFiles={MAX_DOCUMENTS}
           />
         </>
       ) : step === 'review' && booking ? (

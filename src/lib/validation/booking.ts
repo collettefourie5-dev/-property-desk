@@ -101,7 +101,7 @@ export const scheduleSchema = z.object({
   slotId: z.string().trim().max(64).optional(),
 });
 
-/** Documents are uploaded via /api/book/documents; the step itself has no required fields. */
+/** "documents" is purely informational (no upload) and "review" has nothing of its own to submit. */
 export const documentsSchema = z.object({});
 export const reviewSchema = z.object({});
 
@@ -117,52 +117,3 @@ export const stepSchemas = {
   schedule: scheduleSchema,
   review: reviewSchema,
 } as const;
-
-// --- Documents -----------------------------------------------------------------------
-
-export const MAX_DOCUMENT_BYTES = 8 * 1024 * 1024;
-export const MAX_DOCUMENTS = 8;
-
-export const ALLOWED_DOCUMENT_TYPES = {
-  'application/pdf': 'pdf',
-  'application/msword': 'doc',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-  'image/heic': 'heic',
-} as const;
-export type AllowedMime = keyof typeof ALLOWED_DOCUMENT_TYPES;
-
-/**
- * Identifies the real file type from its leading bytes, ignoring the client-supplied
- * MIME type and filename (both attacker-controlled). Returns null for anything not allowed.
- */
-export function sniffDocumentType(bytes: Uint8Array): AllowedMime | null {
-  const starts = (sig: number[], offset = 0) => sig.every((b, i) => bytes[offset + i] === b);
-
-  if (starts([0x25, 0x50, 0x44, 0x46])) return 'application/pdf'; // %PDF
-  if (starts([0xff, 0xd8, 0xff])) return 'image/jpeg';
-  if (starts([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png';
-  if (starts([0x52, 0x49, 0x46, 0x46]) && starts([0x57, 0x45, 0x42, 0x50], 8)) return 'image/webp';
-  if (starts([0x66, 0x74, 0x79, 0x70], 4)) {
-    const brand = String.fromCharCode(...bytes.slice(8, 12));
-    if (['heic', 'heix', 'mif1', 'msf1'].includes(brand)) return 'image/heic';
-  }
-  if (starts([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])) return 'application/msword';
-  if (starts([0x50, 0x4b, 0x03, 0x04])) {
-    // A .docx is a ZIP; require the Word part name so arbitrary ZIPs are rejected.
-    const head = new TextDecoder('latin1').decode(bytes.slice(0, 4096));
-    if (head.includes('[Content_Types].xml') || head.includes('word/')) {
-      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    }
-  }
-  return null;
-}
-
-/** Display-only cleanup of a client filename: no path parts, no control characters, bounded length. */
-export function safeDisplayName(name: string): string {
-  const base = name.split(/[\\/]/).pop() ?? 'document';
-  const cleaned = base.replace(/[\u0000-\u001f\u007f]/g, '').trim();
-  return (cleaned || 'document').slice(0, 150);
-}

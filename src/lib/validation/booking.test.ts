@@ -1,15 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  contactSchema,
-  partiesSchema,
-  propertySchema,
-  safeDisplayName,
-  sniffDocumentType,
-  stageSchema,
-  stepSchemas,
-} from '@/lib/validation/booking';
-
-const bytes = (...b: number[]) => new Uint8Array([...b, ...new Array(32).fill(0)]);
+import { contactSchema, partiesSchema, propertySchema, stageSchema, stepSchemas } from '@/lib/validation/booking';
 
 describe('contactSchema', () => {
   const valid = { fullName: 'Jane Doe', email: 'jane@example.com', phone: '+27 82 123 4567', consent: 'on' };
@@ -50,36 +40,5 @@ describe('step schemas', () => {
       amount: '0',
     });
     expect(parsed).toEqual({ desiredOutcome: 'Sell safely' });
-  });
-});
-
-describe('sniffDocumentType', () => {
-  it('recognises allowed types by content', () => {
-    expect(sniffDocumentType(bytes(0x25, 0x50, 0x44, 0x46))).toBe('application/pdf');
-    expect(sniffDocumentType(bytes(0xff, 0xd8, 0xff, 0xe0))).toBe('image/jpeg');
-    expect(sniffDocumentType(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a))).toBe('image/png');
-    expect(sniffDocumentType(bytes(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1))).toBe('application/msword');
-  });
-
-  it('accepts a docx (zip with Word parts) but rejects an arbitrary zip', () => {
-    const docx = new TextEncoder().encode('PK\u0003\u0004....[Content_Types].xml....word/document.xml');
-    const zip = new TextEncoder().encode('PK\u0003\u0004....some-other-file.txt');
-    expect(sniffDocumentType(docx)).toContain('wordprocessingml');
-    expect(sniffDocumentType(zip)).toBeNull();
-  });
-
-  it('rejects executables and scripts regardless of what they are called', () => {
-    expect(sniffDocumentType(new TextEncoder().encode('MZ\u0090\u0000 windows exe'))).toBeNull();
-    expect(sniffDocumentType(new TextEncoder().encode('<script>alert(1)</script>'))).toBeNull();
-    expect(sniffDocumentType(new TextEncoder().encode('#!/bin/sh\nrm -rf /'))).toBeNull();
-  });
-});
-
-describe('safeDisplayName', () => {
-  it('strips path components and control characters', () => {
-    expect(safeDisplayName('..\\..\\etc/passwd')).toBe('passwd');
-    expect(safeDisplayName('offer\u0000.pdf')).toBe('offer.pdf');
-    expect(safeDisplayName('   ')).toBe('document');
-    expect(safeDisplayName('a'.repeat(400))).toHaveLength(150);
   });
 });

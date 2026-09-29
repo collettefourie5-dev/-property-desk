@@ -17,16 +17,6 @@ const baseSchema = z.object({
   BETTER_AUTH_URL: z.url(),
   NEXT_PUBLIC_APP_URL: z.url(),
 
-  // File storage
-  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
-  STORAGE_LOCAL_DIR: z.string().default('./uploads'),
-  STORAGE_S3_ENDPOINT: z.url().optional(),
-  STORAGE_S3_REGION: z.string().optional(),
-  STORAGE_S3_BUCKET: z.string().optional(),
-  STORAGE_S3_ACCESS_KEY_ID: z.string().optional(),
-  STORAGE_S3_SECRET_ACCESS_KEY: z.string().optional(),
-  STORAGE_S3_FORCE_PATH_STYLE: booleanish.optional(),
-
   // Email
   EMAIL_DRIVER: z.enum(['console', 'resend', 'smtp']).default('console'),
   EMAIL_FROM: z.email().optional(),
@@ -64,18 +54,6 @@ function requireInProduction(env: Env, issues: string[]) {
   // APP_ENV, not NODE_ENV: `next build` always forces NODE_ENV=production even for
   // local/test builds, so APP_ENV is the real signal for "this is a live deployment."
   if (env.APP_ENV !== 'production') return;
-
-  if (env.STORAGE_DRIVER === 's3') {
-    for (const key of [
-      'STORAGE_S3_ENDPOINT',
-      'STORAGE_S3_REGION',
-      'STORAGE_S3_BUCKET',
-      'STORAGE_S3_ACCESS_KEY_ID',
-      'STORAGE_S3_SECRET_ACCESS_KEY',
-    ] as const) {
-      if (!env[key]) issues.push(`${key} is required when STORAGE_DRIVER=s3`);
-    }
-  }
 
   if (env.EMAIL_DRIVER === 'resend' && !env.RESEND_API_KEY) {
     issues.push('RESEND_API_KEY is required when EMAIL_DRIVER=resend');

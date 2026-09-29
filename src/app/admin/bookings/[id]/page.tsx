@@ -16,7 +16,6 @@ export default async function AdminBookingPage(props: PageProps<'/admin/bookings
   const booking = await prisma.booking.findFirst({
     where: { id, intakeSubmittedAt: { not: null } },
     include: {
-      documents: { orderBy: { uploadedAt: 'asc' } },
       timeSlot: { select: { id: true, startsAt: true } },
       trackedEvents: { where: { eventName: { in: ['LEAD', 'SCHEDULE'] } }, orderBy: { eventName: 'asc' } },
     },
@@ -48,42 +47,13 @@ export default async function AdminBookingPage(props: PageProps<'/admin/bookings
       </p>
 
       <dl className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white">
-        {bookingDetailRows(booking)
-          .filter(([label]) => label !== 'Documents')
-          .map(([label, value]) => (
-            <div key={label} className="grid gap-1 px-4 py-3 sm:grid-cols-[10rem_1fr]">
-              <dt className="text-sm text-neutral-500">{label}</dt>
-              <dd className="whitespace-pre-wrap break-words">{value}</dd>
-            </div>
-          ))}
+        {bookingDetailRows(booking).map(([label, value]) => (
+          <div key={label} className="grid gap-1 px-4 py-3 sm:grid-cols-[10rem_1fr]">
+            <dt className="text-sm text-neutral-500">{label}</dt>
+            <dd className="whitespace-pre-wrap break-words">{value}</dd>
+          </div>
+        ))}
       </dl>
-
-      <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-medium text-neutral-500">Documents</h2>
-        {booking.documents.length === 0 ? (
-          <p className="text-sm text-neutral-500">
-            None uploaded.{' '}
-            {booking.docReminderSentAt
-              ? `Reminder sent ${booking.docReminderSentAt.toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg' })}.`
-              : 'A reminder is sent automatically 12 hours before the session if nothing has been uploaded by then.'}
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {booking.documents.map((d) => (
-              <li key={d.id}>
-                <a
-                  href={`/api/admin/documents/${d.id}`}
-                  className="underline underline-offset-2"
-                  download
-                >
-                  {d.originalName}
-                </a>{' '}
-                <span className="text-sm text-neutral-500">({Math.max(1, Math.round(d.sizeBytes / 1024))} KB)</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       {booking.timeSlot && (
         <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-4">

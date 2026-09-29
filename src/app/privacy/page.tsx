@@ -25,9 +25,9 @@ export default function PrivacyPage() {
           <p className="mt-2">
             When you book a session: your name, email address and phone number; the property address and
             type; details of the transaction, including its stage, the ownership structure and other parties
-            involved; anything you write to us about the transaction; and any documents you upload (for
-            example an offer to purchase, agreement or correspondence). Documents may contain the personal
-            information of other people; only upload what is relevant.
+            involved; and anything you write to us about the transaction. We may separately ask you by email
+            for documents relevant to the transaction (for example an offer to purchase, agreement or
+            correspondence) — these are exchanged by email, not through this website.
           </p>
         </section>
 
@@ -53,8 +53,7 @@ export default function PrivacyPage() {
           <p className="mt-2">
             We use the Meta (Facebook) Pixel and Conversions API to measure which advertisements lead to
             bookings. This shares limited information about your interaction with the site (for example that
-            a booking was made) with Meta. We do not send the contents of your documents or your written
-            description of the transaction.
+            a booking was made) with Meta. We do not send your written description of the transaction.
           </p>
         </section>
 

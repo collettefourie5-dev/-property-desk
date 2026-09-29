@@ -27,7 +27,6 @@ export default async function AdminBookingsPage(props: PageProps<'/admin/booking
         paymentStatus: true,
         adminNotifiedAt: true,
         intakeSubmittedAt: true,
-        _count: { select: { documents: true } },
       },
     }),
   ]);
@@ -50,7 +49,6 @@ export default async function AdminBookingsPage(props: PageProps<'/admin/booking
                 <th className="px-4 py-3 font-medium">Received</th>
                 <th className="px-4 py-3 font-medium">Client</th>
                 <th className="px-4 py-3 font-medium">Stage</th>
-                <th className="px-4 py-3 font-medium">Docs</th>
                 <th className="px-4 py-3 font-medium">Fee</th>
                 <th className="px-4 py-3 font-medium">Emailed</th>
               </tr>
@@ -68,7 +66,6 @@ export default async function AdminBookingsPage(props: PageProps<'/admin/booking
                     <div className="text-neutral-500">{b.email}</div>
                   </td>
                   <td className="px-4 py-3">{STAGES.find((s) => s.value === b.stage)?.label}</td>
-                  <td className="px-4 py-3">{b._count.documents}</td>
                   <td className="px-4 py-3">{b.paymentStatus}</td>
                   <td className="px-4 py-3">
                     {b.adminNotifiedAt ? 'Yes' : <span className="font-medium text-red-700">Not sent</span>}

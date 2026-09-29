@@ -13,8 +13,8 @@ const steps = [
     body: 'You will be contacted by email or phone to arrange your session time. You will also have received a receipt for your request — if you can’t find it, check your spam folder.',
   },
   {
-    title: 'Send us your documents',
-    body: 'Before the session, upload your OTP, agreement or any correspondence you have. The more we can read beforehand, the more useful your session will be.',
+    title: 'We may ask for documents',
+    body: 'Before the session, we may email you asking for anything relevant — an OTP, an agreement, or correspondence about the transaction.',
   },
   {
     title: 'Your session',

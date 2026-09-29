@@ -34,7 +34,7 @@ export async function notifyNewBooking(bookingId: string, { force = false } = {}
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { documents: { orderBy: { uploadedAt: 'asc' } }, timeSlot: { select: { startsAt: true } } },
+    include: { timeSlot: { select: { startsAt: true } } },
   });
   if (!booking) return false;
 
